@@ -1,20 +1,91 @@
-# Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+# GobDocs RD – Backend
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+Backend oficial de **GobDocs RD**, una plataforma digital para la gestión, solicitud y emisión de documentos gubernamentales en la República Dominicana.
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+Este backend expone una **API RESTful** segura que permite a ciudadanos, instituciones y administradores interactuar con el sistema de forma centralizada, trazable y auditable.
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+---
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+## Objetivo del Backend
+
+- Gestionar autenticación y autorización de usuarios.
+- Procesar solicitudes de documentos oficiales.
+- Integrar pagos electrónicos.
+- Emitir documentos digitales verificables.
+- Mantener auditoría completa de acciones.
+- Servir como capa de negocio para web y mobile apps.
+
+---
+
+## Arquitectura General
+
+- Arquitectura **cliente-servidor**.
+- Backend desacoplado del frontend.
+- Diseño modular y escalable.
+- Enfoque en seguridad, auditoría y trazabilidad.
+
+---
+
+## Stack Tecnológico (Backend)
+
+- **Runtime:** Node.js
+- **Lenguaje:** TypeScript
+- **Framework:** NestJS
+- **Base de datos:** PostgreSQL
+- **ORM:** Prisma
+- **Autenticación:** JWT + 2FA
+- **Arquitectura:** API RESTful
+- **Control de versiones:** Git (Azure DevOps Repos)
+
+---
+
+## Módulos del Backend
+
+El backend está diseñado de forma modular:
+
+- **Auth:** Registro, login, JWT, 2FA.
+- **Users:** Gestión de perfiles de ciudadanos.
+- **Institutions:** Configuración de instituciones y tarifas.
+- **Requests:** Solicitudes de documentos y estados.
+- **Payments:** Integración con pasarela de pagos.
+- **Documents:** Generación y validación de documentos digitales.
+- **Admin:** Funcionalidades administrativas y backoffice.
+- **Audit Logs:** Registro inmutable de acciones del sistema.
+- **Notifications:** Envío de correos y notificaciones.
+- **Chatbot:** Asistencia automática y consultas de estado.
+
+---
+
+## Seguridad y Cumplimiento
+
+- Autenticación con 2FA. 
+- Protección de datos personales (PII).
+- Auditoría completa de operaciones críticas.
+- Control de accesos por roles.
+
+---
+
+## Estructura Inicial del Proyecto
+
+```text
+gobdocs-backend/
+│
+├── docs/
+│   ├── arquitectura-backend.md
+│   └── srs-resumen.md
+│
+├── src/
+│   ├── auth/
+│   ├── users/
+│   ├── institutions/
+│   ├── requests/
+│   ├── payments/
+│   ├── documents/
+│   ├── admin/
+│   ├── audit-logs/
+│   ├── notifications/
+│   ├── chatbot/
+│   └── common/
+│
+├── README.md
+└── .gitignore
