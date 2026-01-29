@@ -1,0 +1,32 @@
+version: '3.9'
+
+services:
+  api:
+    build: .
+    container_name: gobdocs_api
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      # Esta URL la vamos a usar luego con Prisma u otro ORM
+      DATABASE_URL: postgres://gobdocs:secret@db:5432/gobdocs
+
+  db:
+    image: postgres:16-alpine
+    container_name: gobdocs_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gobdocs
+      POSTGRES_USER: gobdocs
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - gobdocs_pgdata:/var/lib/postgresql/data
+
+volumes:
+  gobdocs_pgdata:
