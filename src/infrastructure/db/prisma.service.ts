@@ -1,19 +1,21 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-// Ajusta la ruta según dónde esté el archivo:
-import { PrismaClient } from './prisma-client';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 @Injectable()
 export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  // Aquí puedes pasar opciones al constructor si quieres (middlewares, logs, etc.)
   constructor() {
-    super();
+    const adapter = new PrismaPg({
+      connectionString: process.env.DATABASE_URL as string,
+    });
+
+    super({ adapter });
   }
 
   async onModuleInit() {
-    // Ahora sí existe this.$connect() porque la clase extiende PrismaClient
     await this.$connect();
   }
 

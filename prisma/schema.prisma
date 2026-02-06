@@ -1,8 +1,192 @@
+// ---------- CONFIG BÁSICA ----------
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/infrastructure/db/prisma-client"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------- MODELOS ----------
+
+model TarifarioDeServicio {
+  Tarifario_Codigo   Int      @id @default(autoincrement())
+  Nombre             String?  @db.VarChar(255)
+  Descripcion        String?  @db.Text
+  Costo_Por_Servicio Decimal? @db.Decimal(10, 2)
+
+  solicitudes Solicitud[]
+
+  @@map("TarifarioDeServicio")
+}
+
+// Formularios de solicitud (definición en JSON)
+model FormulariosSolicitud {
+  Formulario_ID    String   @id @db.Uuid
+  Form_Definition  Json?    @map("Form_Definition")
+  TipoDocumento_ID Int?
+
+  tipoDocumento TipoDocumento?       @relation(fields: [TipoDocumento_ID], references: [TipoDocumento_ID])
+  respuestas    RespuestaFormulario[]
+  solicitudes   Solicitud[]
+
+  @@index([TipoDocumento_ID])
+  @@map("FormulariosSolicitud")
+}
+
+// Catálogo de tipos de documentos
+model TipoDocumento {
+  TipoDocumento_ID Int     @id @default(autoincrement())
+  Nombre           String? @db.VarChar(255)
+  Descripcion      String? @db.Text
+
+  formularios FormulariosSolicitud[]
+  documentos  Documento[]
+
+  @@map("TipoDocumento")
+}
+
+// Documento emitido
+model Documento {
+  Numero_Documento  Int       @id
+  Fecha_Emision     DateTime? @db.Date
+  Fecha_Vencimiento DateTime? @db.Date
+  Nombre_Archivo    String?   @db.VarChar(255)
+  Estado            EstadoDocumento?   // enum
+  TipoDocumento_ID  Int?
+  Solicitud_ID       Int?
+
+  tipoDocumento TipoDocumento? @relation(fields: [TipoDocumento_ID], references: [TipoDocumento_ID])
+  solicitud     Solicitud?     @relation(fields: [Solicitud_ID], references: [Numero_Solicitud])
+
+  @@index([Estado])
+  @@index([TipoDocumento_ID])
+  @@index([Solicitud_ID])
+  @@map("Documento")
+}
+
+// Respuesta a formulario (datos llenados)
+model RespuestaFormulario {
+  Respuesta_ID  String  @id @db.Uuid
+  Respuestas    Json?
+  Formulario_ID String? @db.Uuid
+
+  formulario FormulariosSolicitud? @relation(fields: [Formulario_ID], references: [Formulario_ID])
+  solicitudes Solicitud[]
+
+  @@index([Formulario_ID])
+  @@map("RespuestaFormulario")
+}
+
+// Institución gubernamental / entidad
+model Institucion {
+  Institucion_ID String  @id @db.Uuid
+  Nombre         String? @db.VarChar(255)
+  Descripcion    String? @db.VarChar(255)
+  Logo_URL       String? @db.VarChar(255)
+
+  usuarios    Usuario[]
+  solicitudes Solicitud[]
+
+  @@map("Institucion")
+}
+
+// Usuario del sistema
+model Usuario {
+  Usuario_ID     String @id @default(uuid()) @db.Uuid
+  Nombre         String
+  Cedula         String @unique
+  Correo         String @unique
+  Contrasena     String  @map("Contraseña")
+  Activo         Boolean //@default(true)
+  Rol            RolUsuario          // enum
+  Institucion_ID String?  @db.Uuid
+
+  institucion Institucion? @relation(fields: [Institucion_ID], references: [Institucion_ID])
+  solicitudes Solicitud[]
+  pagos       Pagos[]
+
+  @@index([Institucion_ID])
+  @@map("Usuario")
+}
+
+// Solicitud de servicio/documento
+model Solicitud {
+  Numero_Solicitud           Int             @id @default(autoincrement())
+  Respuesta                  String
+  Comentarios                String
+  Fecha_Emision              DateTime        @db.Date
+  Fecha_Cierre               DateTime        @db.Date
+  Fecha_Ultima_Actualizacion DateTime        @db.Date
+  Estado                     EstadoSolicitud // enum
+  Institucion_ID             String          @db.Uuid
+  Usuario_ID                 String          @db.Uuid
+  Formulario_ID              String          @db.Uuid
+  Respuesta_ID               String          @db.Uuid
+  Tarifario_Codigo           Int
+
+  institucion Institucion          @relation(fields: [Institucion_ID], references: [Institucion_ID])
+  usuario     Usuario              @relation(fields: [Usuario_ID], references: [Usuario_ID])
+  formulario  FormulariosSolicitud @relation(fields: [Formulario_ID], references: [Formulario_ID])
+  respuesta   RespuestaFormulario  @relation(fields: [Respuesta_ID], references: [Respuesta_ID])
+  tarifario   TarifarioDeServicio  @relation(fields: [Tarifario_Codigo], references: [Tarifario_Codigo])
+  documentos  Documento[]
+  pagos       Pagos[]
+
+  @@index([Estado])
+  @@index([Institucion_ID])
+  @@index([Usuario_ID])
+  @@index([Formulario_ID])
+  @@index([Respuesta_ID])
+  @@index([Tarifario_Codigo])
+  @@map("Solicitud")
+}
+
+// Pagos asociados a solicitudes
+model Pagos {
+  Pago_ID      String      @id @db.Uuid
+  Monto_Pago   Decimal     @db.Decimal(10, 2)
+  Fecha_Pago   DateTime    @db.Timestamp(0)
+  Metodo_Pago  MetodoPago  // enum
+  Usuario_ID   String      @db.Uuid
+  Solicitud_ID Int
+
+  usuario   Usuario   @relation(fields: [Usuario_ID], references: [Usuario_ID])
+  solicitud Solicitud @relation(fields: [Solicitud_ID], references: [Numero_Solicitud])
+
+  @@index([Usuario_ID])
+  @@index([Solicitud_ID])
+  @@map("Pagos")
+}
+
+// ---------- ENUMS ----------
+
+// Estados de la solicitud
+enum EstadoSolicitud {
+  PENDIENTE
+  EN_PROCESO
+  APROBADA
+  RECHAZADA
+  CANCELADA
+}
+
+// Estados del documento
+enum EstadoDocumento {
+  GENERADO
+  APROBADO
+  VENCIDO
+  ANULADO
+}
+
+// Métodos de pago
+enum MetodoPago {
+  TARJETA
+  // TRANSFERENCIA
+}
+
+// Roles de usuario
+enum RolUsuario {
+  ADMIN
+  OPERADOR
+  CIUDADANO
 }
