@@ -4,6 +4,7 @@ export abstract class BaseRepository<
     create: (args: any) => Promise<TModel>;
     findMany: (args?: any) => Promise<TModel[]>;
     findUnique: (args: any) => Promise<TModel | null>;
+    findFirst: (args: any) => Promise<TModel | null>; 
     update: (args: any) => Promise<TModel>;
     delete: (args: any) => Promise<TModel>;
   },
@@ -22,6 +23,13 @@ export abstract class BaseRepository<
     args?: Parameters<TDelegate['findMany']>[0],
   ): Promise<TModel[]> {
     return this.delegate.findMany(args);
+  }
+
+  // READ FIRST (get first match)
+  async findFirst(
+    args: Parameters<TDelegate['findFirst']>[0],
+  ) : Promise<TModel | null >{
+    return this.delegate.findFirst(args)
   }
 
   // READ ONE (get by id)

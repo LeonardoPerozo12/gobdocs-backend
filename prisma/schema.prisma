@@ -48,7 +48,7 @@ model TipoDocumento {
 
 // Documento emitido
 model Documento {
-  Numero_Documento  Int       @id
+  Numero_Documento  Int       @id @default(autoincrement())
   Fecha_Emision     DateTime? @db.Date
   Fecha_Vencimiento DateTime? @db.Date
   Nombre_Archivo    String?   @db.VarChar(255)
@@ -67,7 +67,7 @@ model Documento {
 
 // Respuesta a formulario (datos llenados)
 model RespuestaFormulario {
-  Respuesta_ID  String  @id @db.Uuid
+  Respuesta_ID  String  @id @default(uuid()) @db.Uuid
   Respuestas    Json?
   Formulario_ID String? @db.Uuid
 
@@ -80,7 +80,7 @@ model RespuestaFormulario {
 
 // Institución gubernamental / entidad
 model Institucion {
-  Institucion_ID String  @id @db.Uuid
+  Institucion_ID String  @id @default(uuid()) @db.Uuid
   Nombre         String? @db.VarChar(255)
   Descripcion    String? @db.VarChar(255)
   Logo_URL       String? @db.VarChar(255)
@@ -98,7 +98,7 @@ model Usuario {
   Cedula         String @unique
   Correo         String @unique
   Contrasena     String  @map("Contraseña")
-  Activo         Boolean //@default(true)
+  Activo         Boolean @default(true)
   Rol            RolUsuario          // enum
   Institucion_ID String?  @db.Uuid
 
@@ -144,7 +144,7 @@ model Solicitud {
 
 // Pagos asociados a solicitudes
 model Pagos {
-  Pago_ID      String      @id @db.Uuid
+  Pago_ID      String      @id @default(uuid()) @db.Uuid
   Monto_Pago   Decimal     @db.Decimal(10, 2)
   Fecha_Pago   DateTime    @db.Timestamp(0)
   Metodo_Pago  MetodoPago  // enum

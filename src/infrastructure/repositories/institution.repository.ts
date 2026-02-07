@@ -7,4 +7,9 @@ import { BaseRepository } from './base.repository';
 export class InstitutionRepository extends BaseRepository<
     Institucion,
     PrismaService['institucion']
->{}
+>{
+    constructor(prisma: PrismaService){
+        super(prisma.institucion);
+    }
+}
+

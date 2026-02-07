@@ -40,6 +40,10 @@ export class UserService{
                 // Institucion_ID: data.institucionId,
             },
         });
+
+        const { Contrasena, ...safeUser } = usuario;
+        return safeUser;
+
     }
     async login(data: UserLoginDto){
         const user = this.authService.login(data)
