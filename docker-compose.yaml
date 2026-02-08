@@ -13,6 +13,13 @@ services:
       PORT: ${PORT}
       DATABASE_URL: "postgresql://gobdocs:secret@db:5432/gobdocs"
       JWT_SECRET: ${JWT_SECRET}
+
+      # S3 buckets
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      
   db:
     image: postgres:16-alpine
     container_name: gobdocs_db

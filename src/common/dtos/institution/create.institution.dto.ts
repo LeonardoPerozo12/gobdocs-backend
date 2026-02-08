@@ -18,7 +18,7 @@ export class CreateInstitutionDto {
   descripcion?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsString()
   @MaxLength(255)
   logo_URL?: string;
 }
