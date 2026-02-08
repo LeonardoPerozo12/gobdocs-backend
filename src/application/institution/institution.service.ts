@@ -1,4 +1,4 @@
-import {Injectable , NotFoundException , ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { InstitutionRepository } from '../../infrastructure/repositories/institution.repository'
 import { CreateInstitutionDto } from '../../common/dtos/institution/create.institution.dto';
 

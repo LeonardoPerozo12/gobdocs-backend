@@ -1,4 +1,4 @@
-import {Injectable, NotFoundException , ConflictException ,} from '@nestjs/common';
+import { Injectable, ConflictException,} from '@nestjs/common';
 import { UserRepository} from '../../infrastructure/repositories/user.repository';
 import { UserRegisterDto } from '../../common/dtos/user/user.register.dto';
 import { UserLoginDto } from '../../common/dtos/user/user.login.dto';
@@ -24,7 +24,6 @@ export class UserService{
         if(existingCedula){
             throw new ConflictException('Ya existe un usuario con esta cedula');
         }
-
         const hashedPassword = await bcrypt.hash(data.password, 10);
 
         const fullName = `${data.nombre.trim()} ${data.apellido.trim()}`;
@@ -45,8 +44,9 @@ export class UserService{
         return safeUser;
 
     }
-    async login(data: UserLoginDto){
-        const user = this.authService.login(data)
+    async login(data: UserLoginDto) {
+        const result = await this.authService.login(data);
+        return result;
     }
 
 }

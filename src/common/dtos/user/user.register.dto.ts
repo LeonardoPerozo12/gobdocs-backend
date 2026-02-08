@@ -5,7 +5,6 @@ import {
   MinLength,
   MaxLength,
   Matches,
-  IsUUID, 
 } from 'class-validator';
 
 export class UserRegisterDto{
