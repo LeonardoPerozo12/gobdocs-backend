@@ -1,15 +1,17 @@
 import { Module } from '@nestjs/common';
 import { InstitutionService } from '../application/institution/institution.service';
-import { institutionController } from '../api/institution/institution.controller';
+import { InstitutionController } from '../api/institution/institution.controller';
 import { InstitutionInfraModule } from '../infrastructure/InfraModules/institution-infra.module';
+import { CommonModule } from './common.module'
 
 
 @Module({
   imports: [
     InstitutionInfraModule,
+    CommonModule,
   ],
   controllers: [
-    institutionController,
+    InstitutionController,
   ],
   providers: [
     InstitutionService,
