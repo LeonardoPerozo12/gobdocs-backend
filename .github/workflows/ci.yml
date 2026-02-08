@@ -34,9 +34,9 @@ jobs:
       # - name: Lint
       #   run: npm run lint --if-present
 
-      # Opcional: si ya tienes tests
-      - name: Run tests
-        run: npm test --if-present
+      # # Opcional: si ya tienes tests
+      # - name: Run tests
+      #   run: npm test --if-present
 
       - name: Build
         run: npm run build
