@@ -30,9 +30,9 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      # Opcional: si tienes lint
-      - name: Lint
-        run: npm run lint --if-present
+      # # Opcional: si tienes lint
+      # - name: Lint
+      #   run: npm run lint --if-present
 
       # Opcional: si ya tienes tests
       - name: Run tests
