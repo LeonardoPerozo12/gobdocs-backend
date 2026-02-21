@@ -3,12 +3,14 @@ import { UserService } from '../application/users/user.service';
 import { UserController } from '../api/users/user.controller';
 import { UserInfraModule } from '../infrastructure/InfraModules/user-infra.module';
 import { AuthModule } from '../common/auth/auth.module';
+import { InstitutionInfraModule } from 'src/infrastructure/InfraModules/institution-infra.module';
 
 
 @Module({
   imports: [
     UserInfraModule, // repos + prisma
     AuthModule,      // AuthService (login / jwt)
+    InstitutionInfraModule,
   ],
   controllers: [
     UserController,

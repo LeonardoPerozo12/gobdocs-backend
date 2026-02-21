@@ -15,9 +15,12 @@ import { CommonModule } from './common.module'
   ],
   providers: [
     InstitutionService,
+    InstitutionInfraModule,
+
   ],
   exports: [
     InstitutionService,
+    InstitutionInfraModule,
   ],
 })
 export class institutionModule {}
