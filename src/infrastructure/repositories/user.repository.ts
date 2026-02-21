@@ -1,5 +1,5 @@
 import {Injectable} from '@nestjs/common';
-import { Usuario } from '@prisma/client';
+import { RolUsuario, Usuario } from '@prisma/client';
 import {PrismaService} from '../db/prisma.service';
 import { BaseRepository } from './base.repository';
 
@@ -21,7 +21,15 @@ export class UserRepository extends BaseRepository<
         return this.delegate.findFirst({
         where: { Cedula : cedula },
         });
-    } 
+    }
+    async findByCedulaAndRol(cedula: string, rol: RolUsuario) {
+    return this.delegate.findFirst({
+        where: {
+            Cedula: cedula,
+            Rol: rol,
+        },
+        });
+    }
     async findActiveUsers() {
         return this.findMany({
         where: { Activo: true },
