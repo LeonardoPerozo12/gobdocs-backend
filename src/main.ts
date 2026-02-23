@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './modules/app.module';
+import "reflect-metadata";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -9,10 +10,8 @@ async function bootstrap() {
   console.log(`Application is running on: http://localhost:${port}`);
 
     app.enableCors({
-    origin: [
-      'http://localhost:5173',              // tu front local (Vite)
-      // 'https://tu-front.vercel.app',       // tu dominio real del front (cuando lo tengas)
-    ],
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
 }
