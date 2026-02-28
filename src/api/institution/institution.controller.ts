@@ -23,7 +23,8 @@ export class InstitutionController {
   ) {}
 
   @Post('create')
-  @Roles(RolUsuario.OPERADOR, RolUsuario.ADMIN)
+  @Public()
+  // @Roles(RolUsuario.OPERADOR, RolUsuario.ADMIN)
   @UseInterceptors(FileInterceptor('logo'))
   async create(
     @Body() dto: CreateInstitutionDto,
