@@ -1,9 +1,9 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { UserRepository} from '../../infrastructure/repositories/user.repository';
 import { UserRegisterDto } from '../../common/dtos/user/user.register.dto';
-import { UserLoginDto } from '../../common/dtos/user/user.login.dto';
+// import { UserLoginDto } from '../../common/dtos/user/user.login.dto';
 import { RolUsuario } from '@prisma/client';
-import {AuthService} from '../../common/auth/auth.service';
+// import {AuthService} from '../../common/auth/auth.service';
 import * as bcrypt from 'bcrypt';
 import { OperatorRegisterDto } from 'src/common/dtos/user/user.operator.register';
 import { InstitutionRepository } from 'src/infrastructure/repositories/institution.repository';

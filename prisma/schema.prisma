@@ -15,18 +15,18 @@ model TarifarioDeServicio {
   Descripcion        String?  @db.Text
   Costo_Por_Servicio Decimal? @db.Decimal(10, 2)
 
-  solicitudes Solicitud[]
+  detalles DetalleSolicitud[]
 
   @@map("TarifarioDeServicio")
 }
 
 // Formularios de solicitud (definición en JSON)
 model FormulariosSolicitud {
-  Formulario_ID    String   @id @db.Uuid
-  Form_Definition  Json?    @map("Form_Definition")
+  Formulario_ID    String @id @db.Uuid
+  Form_Definition  Json?  @map("Form_Definition")
   TipoDocumento_ID Int?
 
-  tipoDocumento TipoDocumento?       @relation(fields: [TipoDocumento_ID], references: [TipoDocumento_ID])
+  tipoDocumento TipoDocumento?        @relation(fields: [TipoDocumento_ID], references: [TipoDocumento_ID])
   respuestas    RespuestaFormulario[]
   solicitudes   Solicitud[]
 
@@ -39,30 +39,78 @@ model TipoDocumento {
   TipoDocumento_ID Int     @id @default(autoincrement())
   Nombre           String? @db.VarChar(255)
   Descripcion      String? @db.Text
+  Institucion_ID   String  @db.Uuid
 
+  institucion Institucion            @relation(fields: [Institucion_ID], references: [Institucion_ID])
   formularios FormulariosSolicitud[]
   documentos  Documento[]
 
+  requisitos RequisitoTipoDocumento[] @relation("RequisitosDelDocumento")
+
+  usadoComoRequisitoEn RequisitoTipoDocumento[] @relation("DocumentoRequerido")
+
+  @@index([Institucion_ID])
   @@map("TipoDocumento")
 }
 
 // Documento emitido
 model Documento {
-  Numero_Documento  Int       @id @default(autoincrement())
-  Fecha_Emision     DateTime? @db.Date
-  Fecha_Vencimiento DateTime? @db.Date
-  Nombre_Archivo    String?   @db.VarChar(255)
-  Estado            EstadoDocumento?   // enum
-  TipoDocumento_ID  Int?
-  Solicitud_ID       Int?
+  Numero_Documento  Int             @id @default(autoincrement())
+  Fecha_Emision     DateTime        @db.Date
+  Fecha_Vencimiento DateTime?       @db.Date
+  Nombre_Archivo    String          @db.VarChar(255)
+  Url_Archivo       String          @db.VarChar(500)
+  Estado            EstadoDocumento @default(GENERADO)
+  TipoDocumento_ID  Int
+  Solicitud_ID      Int
 
-  tipoDocumento TipoDocumento? @relation(fields: [TipoDocumento_ID], references: [TipoDocumento_ID])
-  solicitud     Solicitud?     @relation(fields: [Solicitud_ID], references: [Numero_Solicitud])
+  tipoDocumento TipoDocumento @relation(fields: [TipoDocumento_ID], references: [TipoDocumento_ID])
+  solicitud     Solicitud     @relation(fields: [Solicitud_ID], references: [Numero_Solicitud])
 
   @@index([Estado])
   @@index([TipoDocumento_ID])
   @@index([Solicitud_ID])
   @@map("Documento")
+}
+
+// Documentos adjuntos a la solicitud (ej: requisitos que el ciudadano sube para cumplir con lo solicitado)
+model DocumentoAdjuntoSolicitud {
+  DocumentoAdjunto_ID String   @id @default(uuid()) @db.Uuid
+  Solicitud_ID        Int
+  Requisito_ID        Int? // a cuál requisito responde (si aplica)
+  Nombre_Archivo      String   @db.VarChar(255)
+  Url_Archivo         String   @db.VarChar(500)
+  Tipo_Mime           String?  @db.VarChar(100) // (pdf, jpg, etc.)
+  Fecha_Subida        DateTime @default(now())
+
+  solicitud Solicitud               @relation(fields: [Solicitud_ID], references: [Numero_Solicitud])
+  requisito RequisitoTipoDocumento? @relation(fields: [Requisito_ID], references: [Requisito_ID])
+
+  @@index([Solicitud_ID])
+  @@index([Requisito_ID])
+  @@map("DocumentoAdjuntoSolicitud")
+}
+
+// Requisitos asociados a cada tipo de documento (ej: para cédula necesito acta de nacimiento, foto 2x2, etc.)
+model RequisitoTipoDocumento {
+  Requisito_ID               Int     @id @default(autoincrement())
+  TipoDocumento_ID           Int // el doc que quiero sacar (ej: cédula)
+  TipoDocumento_Requerido_ID Int? // si el requisito es OTRO tipo de doc del sistema (ej: acta)
+  Nombre                     String  @db.VarChar(255) // texto legible: "Acta de nacimiento", "Foto 2x2"
+  Descripcion                String? @db.Text
+  EsObligatorio              Boolean @default(true)
+
+  // Si el requisito es “subir archivo”
+  Requiere_Archivo Boolean @default(true)
+
+  tipoDocumento          TipoDocumento  @relation("RequisitosDelDocumento", fields: [TipoDocumento_ID], references: [TipoDocumento_ID])
+  tipoDocumentoRequerido TipoDocumento? @relation("DocumentoRequerido", fields: [TipoDocumento_Requerido_ID], references: [TipoDocumento_ID])
+
+  adjuntos DocumentoAdjuntoSolicitud[]
+
+  @@index([TipoDocumento_ID])
+  @@index([TipoDocumento_Requerido_ID])
+  @@map("RequisitoTipoDocumento")
 }
 
 // Respuesta a formulario (datos llenados)
@@ -71,7 +119,7 @@ model RespuestaFormulario {
   Respuestas    Json?
   Formulario_ID String? @db.Uuid
 
-  formulario FormulariosSolicitud? @relation(fields: [Formulario_ID], references: [Formulario_ID])
+  formulario  FormulariosSolicitud? @relation(fields: [Formulario_ID], references: [Formulario_ID])
   solicitudes Solicitud[]
 
   @@index([Formulario_ID])
@@ -85,22 +133,23 @@ model Institucion {
   Descripcion    String? @db.VarChar(255)
   Logo_URL       String? @db.VarChar(255)
 
-  usuarios    Usuario[]
-  solicitudes Solicitud[]
+  usuarios       Usuario[]
+  solicitudes    Solicitud[]
+  tiposDocumento TipoDocumento[]
 
   @@map("Institucion")
 }
 
 // Usuario del sistema
 model Usuario {
-  Usuario_ID     String @id @default(uuid()) @db.Uuid
+  Usuario_ID     String     @id @default(uuid()) @db.Uuid
   Nombre         String
   Cedula         String
-  Correo         String @unique
-  Contrasena     String  @map("Contraseña")
-  Activo         Boolean @default(true)
-  Rol            RolUsuario          // enum
-  Institucion_ID String?  @db.Uuid
+  Correo         String     @unique
+  Contrasena     String     @map("Contraseña")
+  Activo         Boolean    @default(true)
+  Rol            RolUsuario // enum
+  Institucion_ID String?    @db.Uuid
 
   institucion Institucion? @relation(fields: [Institucion_ID], references: [Institucion_ID])
   solicitudes Solicitud[]
@@ -119,37 +168,50 @@ model Solicitud {
   Fecha_Emision              DateTime        @db.Date
   Fecha_Cierre               DateTime        @db.Date
   Fecha_Ultima_Actualizacion DateTime        @db.Date
-  Estado                     EstadoSolicitud // enum
+  Estado                     EstadoSolicitud
   Institucion_ID             String          @db.Uuid
   Usuario_ID                 String          @db.Uuid
   Formulario_ID              String          @db.Uuid
   Respuesta_ID               String          @db.Uuid
-  Tarifario_Codigo           Int
 
-  institucion Institucion          @relation(fields: [Institucion_ID], references: [Institucion_ID])
-  usuario     Usuario              @relation(fields: [Usuario_ID], references: [Usuario_ID])
-  formulario  FormulariosSolicitud @relation(fields: [Formulario_ID], references: [Formulario_ID])
-  respuesta   RespuestaFormulario  @relation(fields: [Respuesta_ID], references: [Respuesta_ID])
-  tarifario   TarifarioDeServicio  @relation(fields: [Tarifario_Codigo], references: [Tarifario_Codigo])
+  institucion Institucion                 @relation(fields: [Institucion_ID], references: [Institucion_ID])
+  usuario     Usuario                     @relation(fields: [Usuario_ID], references: [Usuario_ID])
+  formulario  FormulariosSolicitud        @relation(fields: [Formulario_ID], references: [Formulario_ID])
+  respuesta   RespuestaFormulario         @relation(fields: [Respuesta_ID], references: [Respuesta_ID])
+  detalles    DetalleSolicitud[]
   documentos  Documento[]
   pagos       Pagos[]
+  adjuntos    DocumentoAdjuntoSolicitud[]
 
   @@index([Estado])
   @@index([Institucion_ID])
   @@index([Usuario_ID])
   @@index([Formulario_ID])
   @@index([Respuesta_ID])
-  @@index([Tarifario_Codigo])
   @@map("Solicitud")
+}
+
+model DetalleSolicitud {
+  Detalle_ID       String @id @default(uuid()) @db.Uuid
+  Solicitud_ID     Int
+  Tarifario_Codigo Int
+  Cantidad         Int    @default(1)
+
+  solicitud Solicitud           @relation(fields: [Solicitud_ID], references: [Numero_Solicitud])
+  tarifario TarifarioDeServicio @relation(fields: [Tarifario_Codigo], references: [Tarifario_Codigo])
+
+  @@index([Solicitud_ID])
+  @@index([Tarifario_Codigo])
+  @@map("DetalleSolicitud")
 }
 
 // Pagos asociados a solicitudes
 model Pagos {
-  Pago_ID      String      @id @default(uuid()) @db.Uuid
-  Monto_Pago   Decimal     @db.Decimal(10, 2)
-  Fecha_Pago   DateTime    @db.Timestamp(0)
-  Metodo_Pago  MetodoPago  // enum
-  Usuario_ID   String      @db.Uuid
+  Pago_ID      String     @id @default(uuid()) @db.Uuid
+  Monto_Pago   Decimal    @db.Decimal(10, 2)
+  Fecha_Pago   DateTime   @db.Timestamp(0)
+  Metodo_Pago  MetodoPago // enum
+  Usuario_ID   String     @db.Uuid
   Solicitud_ID Int
 
   usuario   Usuario   @relation(fields: [Usuario_ID], references: [Usuario_ID])
