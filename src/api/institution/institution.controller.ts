@@ -33,6 +33,12 @@ export class InstitutionController {
   }
 
   @Public()
+  @Get()
+  async getAll() {
+    return this.institutionService.findAll();
+  }
+
+  @Public()
   @Get(':id')
   async getOne(@Param('id') id: string) {
     return this.institutionService.findOne(id);

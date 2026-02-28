@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InstitutionRepository } from '../../infrastructure/repositories/institution.repository'
 import { CreateInstitutionDto } from '../../common/dtos/institution/create.institution.dto';
 import { S3Service } from '../../common/helper/s3.helper';
@@ -64,7 +64,7 @@ export class InstitutionService{
         });
 
         if (!institucion) {
-            return null; // o lanzar NotFoundException
+          throw new NotFoundException('No se encontro la institución');
         }
 
         let logoUrl: string | null = null;
@@ -79,4 +79,22 @@ export class InstitutionService{
             logoUrl, // esta es la que el front puede usar <img src={logoUrl} />
         };
     }
-}
+    async findAll() {
+        const instituciones = await this.institutionRepository.findMany();
+
+        // Para cada institución, obtenemos la URL firmada del logo si existe
+        const institucionesConLogos = await Promise.all(
+            instituciones.map(async (institucion) => {
+                let logoUrl: string | null = null;
+                if (institucion.Logo_URL) {
+                    logoUrl = await this.s3Service.getSignedGetUrl(institucion.Logo_URL);
+                }
+                return {
+                    ...institucion,
+                    logoUrl,
+                };
+            }),
+        );        return institucionesConLogos;
+    }
+  }
+
