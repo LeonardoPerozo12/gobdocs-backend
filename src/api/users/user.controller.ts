@@ -20,7 +20,8 @@ export class UserController {
   }
 
   @Post('registro-operador')
-  @Roles(RolUsuario.ADMIN) // Solo ADMIN puede registrar operadores
+  @Public()
+  // @Roles(RolUsuario.ADMIN) // Solo ADMIN puede registrar operadores
   async registerOperator(@Body() dto: OperatorRegisterDto) {
     return this.userService.registerOperator(dto);
   }
