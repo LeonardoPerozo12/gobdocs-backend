@@ -22,7 +22,7 @@ model TarifarioDeServicio {
 
 // Formularios de solicitud (definición en JSON)
 model FormulariosSolicitud {
-  Formulario_ID    String @id @db.Uuid
+  Formulario_ID    String @id @default(uuid()) @db.Uuid
   Form_Definition  Json?  @map("Form_Definition")
   TipoDocumento_ID Int?
 
