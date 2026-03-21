@@ -9,13 +9,10 @@ import { Type } from 'class-transformer';
 import { ServicioSolicitudDto } from './create-servicio-solicitud.dto';
 
 export class CreateSolicitudDto {
-    @IsUUID()
-    @IsNotEmpty()
-    institucionId: string;
 
     @IsUUID()
     @IsNotEmpty()
-    formularioId: string;
+    Formulario_ID: string; // 🔥 ahora coincide con Prisma
 
     @IsArray()
     @ValidateNested({ each: true })
@@ -24,10 +21,5 @@ export class CreateSolicitudDto {
 
     @IsObject()
     @IsNotEmpty()
-    respuestas: Record<string, any>; // JSON del form
-
-    // Si quieres permitir comentarios del ciudadano:
-    // @IsOptional()
-    // @IsString()
-    // comentarios?: string;
+    respuestas: Record<string, any>; // 🔥 JSON dinámico
 }

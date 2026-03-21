@@ -21,6 +21,7 @@ import { FormulariosSolicitudModule } from './formularios-solicitud.module';
   TipoDocumentoModule,
   SolicitudModule,
   FormulariosSolicitudModule,
+  SolicitudModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
