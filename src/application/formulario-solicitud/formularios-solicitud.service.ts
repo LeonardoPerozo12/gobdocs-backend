@@ -13,7 +13,17 @@ export class FormulariosSolicitudService {
 
   async create(dto: CreateFormularioSolicitudDto) {
     return this.formulariosRepo.create({
-      data: dto,
+      data: {
+        TipoDocumento_ID: dto.TipoDocumento_ID, // ✅ SÍ VA
+
+        // 🔥 este era el error principal
+        Form_Definition: dto.Estructura,
+
+        // ❌ ESTOS NO EXISTEN EN EL MODELO
+        // Nombre
+        // Descripcion
+        // EsActivo
+      },
     });
   }
 
