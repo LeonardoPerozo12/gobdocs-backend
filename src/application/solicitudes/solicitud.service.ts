@@ -11,56 +11,77 @@ export class SolicitudService {
         private readonly prisma: PrismaService, // 
     ) {}
 
-    async createSolicitud(userId: string, data: CreateSolicitudDto) {
+   async createSolicitud(userId: string, data: any) {
 
-        const { Formulario_ID, respuestas } = data;
+        const { solicitudes } = data;
 
-        // 🔥 1. Buscar formulario
-        const formulario = await this.prisma.formulariosSolicitud.findUnique({
-            where: { Formulario_ID },
-            include: {
-                tipoDocumento: true,
-            },
-        });
-
-        if (!formulario) {
-            throw new NotFoundException('Formulario no encontrado');
+        if (!solicitudes || !solicitudes.length) {
+            throw new NotFoundException('No hay solicitudes');
         }
 
-        const institucionId = formulario.tipoDocumento?.Institucion_ID;
+        const resultados: any[] = [];
 
-        if (!institucionId) {
-            throw new NotFoundException('El formulario no tiene institución');
+        for (const solicitudItem of solicitudes) {
+
+            const { Formulario_ID, respuestas } = solicitudItem;
+
+            console.log("🟡 Procesando solicitud:", solicitudItem);
+
+            if (!Formulario_ID) {
+                throw new NotFoundException('Formulario_ID es requerido');
+            }
+
+            // 🔥 1. Buscar formulario
+            const formulario = await this.prisma.formulariosSolicitud.findUnique({
+                where: { Formulario_ID },
+                include: {
+                    tipoDocumento: true,
+                },
+            });
+
+            if (!formulario) {
+                throw new NotFoundException('Formulario no encontrado');
+            }
+
+            const institucionId = formulario.tipoDocumento?.Institucion_ID;
+
+            if (!institucionId) {
+                throw new NotFoundException('El formulario no tiene institución');
+            }
+
+            const now = new Date();
+
+            // 🔥 2. Crear respuesta
+            const respuestaCreada = await this.prisma.respuestaFormulario.create({
+                data: {
+                    Formulario_ID,
+                    Respuestas: respuestas,
+                },
+            });
+
+            // 🔥 3. Crear solicitud
+            const solicitudCreada = await this.prisma.solicitud.create({
+                data: {
+                    Usuario_ID: userId,
+                    Institucion_ID: institucionId,
+                    Formulario_ID,
+                    Respuesta_ID: respuestaCreada.Respuesta_ID,
+
+                    Estado: EstadoSolicitud.PENDIENTE,
+                    Respuesta: '',
+                    Comentarios: '',
+                    Fecha_Emision: now,
+                    Fecha_Cierre: now,
+                    Fecha_Ultima_Actualizacion: now,
+                },
+                include: {
+                    respuesta: true,
+                },
+            });
+
+            resultados.push(solicitudCreada);
         }
 
-        const now = new Date();
-
-        // 🔥 2. Crear respuesta PRIMERO
-        const respuestaCreada = await this.prisma.respuestaFormulario.create({
-            data: {
-                Formulario_ID,
-                Respuestas: respuestas,
-            },
-        });
-
-        // 🔥 3. Crear solicitud usando Respuesta_ID
-        return this.prisma.solicitud.create({
-            data: {
-                Usuario_ID: userId,
-                Institucion_ID: institucionId,
-                Formulario_ID,
-                Respuesta_ID: respuestaCreada.Respuesta_ID,
-
-                Estado: EstadoSolicitud.PENDIENTE,
-                Respuesta: '',
-                Comentarios: '',
-                Fecha_Emision: now,
-                Fecha_Cierre: now,
-                Fecha_Ultima_Actualizacion: now,
-            },
-            include: {
-                respuesta: true,
-            },
-        });
+        return resultados;
     }
 }
