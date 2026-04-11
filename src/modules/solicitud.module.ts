@@ -17,6 +17,7 @@ import { SolicitudInfraModule } from "src/infrastructure/InfraModules/solicitud-
     ],
     exports: [
         SolicitudInfraModule,
+        SolicitudService,
     ],
 })
 export class SolicitudModule {}
