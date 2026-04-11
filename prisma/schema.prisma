@@ -15,6 +15,10 @@ model TarifarioDeServicio {
   Descripcion        String?  @db.Text
   Costo_Por_Servicio Decimal? @db.Decimal(10, 2)
 
+  TipoDocumento_ID Int?
+
+  tipoDocumento TipoDocumento? @relation(fields: [TipoDocumento_ID], references: [TipoDocumento_ID])
+
   detalles DetalleSolicitud[]
 
   @@map("TarifarioDeServicio")
@@ -48,6 +52,8 @@ model TipoDocumento {
   requisitos RequisitoTipoDocumento[] @relation("RequisitosDelDocumento")
 
   usadoComoRequisitoEn RequisitoTipoDocumento[] @relation("DocumentoRequerido")
+
+  tarifarios TarifarioDeServicio[]
 
   @@index([Institucion_ID])
   @@map("TipoDocumento")

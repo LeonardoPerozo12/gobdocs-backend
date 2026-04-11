@@ -10,6 +10,8 @@ import { SolicitudModule } from './solicitud.module';
 import { TipoDocumentoModule } from './tipo-documento.module';
 import { RequisitoTipoDocumentoModule } from './requisito-tipo-documento.module';
 import { FormulariosSolicitudModule } from './formularios-solicitud.module';
+import { PaymentsModule } from './payments.module';
+import { TarifarioModule } from './tarifario.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { FormulariosSolicitudModule } from './formularios-solicitud.module';
   SolicitudModule,
   FormulariosSolicitudModule,
   SolicitudModule,
+  PaymentsModule,
+  TarifarioModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

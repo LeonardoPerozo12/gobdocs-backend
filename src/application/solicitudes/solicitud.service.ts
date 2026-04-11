@@ -10,77 +10,114 @@ export class SolicitudService {
         private readonly prisma: PrismaService,
     ) {}
 
-    // 🔥 CREAR SOLICITUD
+    // CREAR SOLICITUD
     async createSolicitud(userId: string, data: any) {
+    const { solicitudes } = data;
 
-        const { solicitudes } = data;
-
-        if (!solicitudes || !solicitudes.length) {
-            throw new NotFoundException('No hay solicitudes');
-        }
-
-        const resultados: any[] = [];
-
-        for (const solicitudItem of solicitudes) {
-
-            const { Formulario_ID, respuestas } = solicitudItem;
-
-            if (!Formulario_ID) {
-                throw new NotFoundException('Formulario_ID es requerido');
-            }
-
-            const formulario = await this.prisma.formulariosSolicitud.findUnique({
-                where: { Formulario_ID },
-                include: {
-                    tipoDocumento: true,
-                },
-            });
-
-            if (!formulario) {
-                throw new NotFoundException('Formulario no encontrado');
-            }
-
-            const institucionId = formulario.tipoDocumento?.Institucion_ID;
-
-            if (!institucionId) {
-                throw new NotFoundException('El formulario no tiene institución');
-            }
-
-            const now = new Date();
-
-            const respuestaCreada = await this.prisma.respuestaFormulario.create({
-                data: {
-                    Formulario_ID,
-                    Respuestas: respuestas,
-                },
-            });
-
-            const solicitudCreada = await this.prisma.solicitud.create({
-                data: {
-                    Usuario_ID: userId,
-                    Institucion_ID: institucionId,
-                    Formulario_ID,
-                    Respuesta_ID: respuestaCreada.Respuesta_ID,
-
-                    Estado: EstadoSolicitud.PENDIENTE,
-                    Respuesta: '',
-                    Comentarios: '',
-                    Fecha_Emision: now,
-                    Fecha_Cierre: now,
-                    Fecha_Ultima_Actualizacion: now,
-                },
-                include: {
-                    respuesta: true,
-                },
-            });
-
-            resultados.push(solicitudCreada);
-        }
-
-        return resultados;
+    if (!solicitudes || !solicitudes.length) {
+        throw new NotFoundException('No hay solicitudes');
     }
 
-    // 🔥 OBTENER SOLICITUDES DEL USUARIO
+    const resultados: any[] = [];
+
+    for (const solicitudItem of solicitudes) {
+        const { Formulario_ID, respuestas, detalles } = solicitudItem;
+
+        // VALIDACIONES
+        if (!Formulario_ID) {
+        throw new NotFoundException('Formulario_ID es requerido');
+        }
+
+        if (!detalles || !detalles.length) {
+        throw new BadRequestException('Debe incluir detalles de tarifas');
+        }
+
+        const formulario = await this.prisma.formulariosSolicitud.findUnique({
+        where: { Formulario_ID },
+        include: {
+            tipoDocumento: true,
+        },
+        });
+
+        if (!formulario) {
+        throw new NotFoundException('Formulario no encontrado');
+        }
+
+        const institucionId = formulario.tipoDocumento?.Institucion_ID;
+
+        if (!institucionId) {
+        throw new NotFoundException('El formulario no tiene institución');
+        }
+
+        const now = new Date();
+
+        // CREAR RESPUESTA
+        const respuestaCreada = await this.prisma.respuestaFormulario.create({
+        data: {
+            Formulario_ID,
+            Respuestas: respuestas,
+        },
+        });
+
+        // CREAR SOLICITUD
+        const solicitudCreada = await this.prisma.solicitud.create({
+        data: {
+            Usuario_ID: userId,
+            Institucion_ID: institucionId,
+            Formulario_ID,
+            Respuesta_ID: respuestaCreada.Respuesta_ID,
+
+            Estado: EstadoSolicitud.PENDIENTE,
+            Respuesta: '',
+            Comentarios: '',
+            Fecha_Emision: now,
+            Fecha_Cierre: now,
+            Fecha_Ultima_Actualizacion: now,
+        },
+        });
+
+        // VALIDAR TARIFARIOS EXISTEN
+        const tarifariosIds = detalles.map((d: any) => d.tarifarioId);
+
+        const tarifarios = await this.prisma.tarifarioDeServicio.findMany({
+        where: {
+            Tarifario_Codigo: {
+            in: tarifariosIds,
+            },
+        },
+        });
+
+        if (tarifarios.length !== detalles.length) {
+        throw new BadRequestException('Uno o más tarifarios no existen');
+        }
+
+        // CREAR DETALLES
+        for (const detalle of detalles) {
+        await this.prisma.detalleSolicitud.create({
+            data: {
+            Solicitud_ID: solicitudCreada.Numero_Solicitud,
+            Tarifario_Codigo: detalle.tarifarioId,
+            Cantidad: detalle.cantidad,
+            },
+        });
+        }
+
+        // OPCIONAL: CALCULAR MONTO AQUÍ MISMO
+        const total = tarifarios.reduce((acc, t) => {
+        const item = detalles.find((d: any) => d.tarifarioId === t.Tarifario_Codigo);
+        return acc + Number(t.Costo_Por_Servicio) * (item?.cantidad || 1);
+        }, 0);
+
+        resultados.push({
+        ...solicitudCreada,
+        monto_estimado: total, // útil para frontend
+        });
+    }
+
+    return resultados;
+    }
+
+    // OBTENER SOLICITUDES DEL USUARIO
     async getSolicitudesByUsuario(usuarioId: string) {
         return this.prisma.solicitud.findMany({
             where: {
@@ -102,7 +139,7 @@ export class SolicitudService {
         });
     }
 
-    // 🔥 OBTENER SOLICITUDES POR INSTITUCIÓN
+    // OBTENER SOLICITUDES POR INSTITUCIÓN
     async getSolicitudesByInstitucion(institucionId: string) {
         return this.prisma.solicitud.findMany({
             where: {
@@ -150,7 +187,7 @@ export class SolicitudService {
         return solicitud;
     }
 
-    // 🔥 EMITIR DOCUMENTO (OPERADOR)
+    // EMITIR DOCUMENTO (OPERADOR)
     async emitirDocumento(
         numeroSolicitud: number,
         file: Express.Multer.File,
@@ -221,5 +258,26 @@ export class SolicitudService {
                 Fecha_Ultima_Actualizacion: new Date(),
             },
         });
+    }
+
+    async calcularMontoDesdeSolicitud(solicitudId: number) {
+        const solicitud = await this.prisma.solicitud.findUnique({
+            where: { Numero_Solicitud: solicitudId },
+            include: {
+            detalles: {
+                include: {
+                tarifario: true,
+                },
+            },
+            },
+        });
+
+        if (!solicitud) {
+            throw new NotFoundException('Solicitud no encontrada');
+        }
+
+        return solicitud.detalles.reduce((acc, d) => {
+            return acc + Number(d.tarifario.Costo_Por_Servicio) * d.Cantidad;
+        }, 0);
     }
 }
