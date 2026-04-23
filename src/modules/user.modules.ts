@@ -4,13 +4,14 @@ import { UserController } from '../api/users/user.controller';
 import { UserInfraModule } from '../infrastructure/InfraModules/user-infra.module';
 import { AuthModule } from '../common/auth/auth.module';
 import { InstitutionInfraModule } from 'src/infrastructure/InfraModules/institution-infra.module';
-
+import { EmailModule } from './email.module';
 
 @Module({
   imports: [
     UserInfraModule, // repos + prisma
     AuthModule,      // AuthService (login / jwt)
     InstitutionInfraModule,
+    EmailModule,     // EmailService (envío de emails)
   ],
   controllers: [
     UserController,
