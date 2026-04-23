@@ -3,118 +3,144 @@ import { SolicitudRepository } from "src/infrastructure/repositories/solicitud.r
 import { EstadoSolicitud } from "@prisma/client";
 import { PrismaService } from "src/infrastructure/db/prisma.service";
 
+// 🔥 IMPORTAR EMAIL
+import { EmailService } from "src/infrastructure/email/email.service";
+
 @Injectable()
 export class SolicitudService {
     constructor(
         private readonly solicitudRepository: SolicitudRepository,
         private readonly prisma: PrismaService,
+        private readonly emailService: EmailService,
     ) {}
 
     // CREAR SOLICITUD
     async createSolicitud(userId: string, data: any) {
-    const { solicitudes } = data;
+        const { solicitudes } = data;
 
-    if (!solicitudes || !solicitudes.length) {
-        throw new NotFoundException('No hay solicitudes');
-    }
+        if (!solicitudes || !solicitudes.length) {
+            throw new NotFoundException('No hay solicitudes');
+        }
 
-    const resultados: any[] = [];
+        const usuario = await this.prisma.usuario.findUnique({
+            where: { Usuario_ID: userId },
+        });
 
-    for (const solicitudItem of solicitudes) {
-        const { Formulario_ID, respuestas, detalles } = solicitudItem;
+        if (!usuario) {
+            throw new NotFoundException('Usuario no encontrado');
+        }
+
+        const resultados: any[] = [];
+
+        for (const solicitudItem of solicitudes) {
+            const { Formulario_ID, respuestas, detalles } = solicitudItem;
 
         // VALIDACIONES
-        if (!Formulario_ID) {
-        throw new NotFoundException('Formulario_ID es requerido');
-        }
+            if (!Formulario_ID) {
+                throw new NotFoundException('Formulario_ID es requerido');
+            }
 
-        if (!detalles || !detalles.length) {
-        throw new BadRequestException('Debe incluir detalles de tarifas');
-        }
+            if (!detalles || !detalles.length) {
+                throw new BadRequestException('Debe incluir detalles de tarifas');
+            }
 
-        const formulario = await this.prisma.formulariosSolicitud.findUnique({
-        where: { Formulario_ID },
-        include: {
-            tipoDocumento: true,
-        },
-        });
+            const formulario = await this.prisma.formulariosSolicitud.findUnique({
+                where: { Formulario_ID },
+                include: {
+                    tipoDocumento: true,
+                },
+            });
 
-        if (!formulario) {
-        throw new NotFoundException('Formulario no encontrado');
-        }
+            if (!formulario) {
+                throw new NotFoundException('Formulario no encontrado');
+            }
 
-        const institucionId = formulario.tipoDocumento?.Institucion_ID;
+            const institucionId = formulario.tipoDocumento?.Institucion_ID;
 
-        if (!institucionId) {
-        throw new NotFoundException('El formulario no tiene institución');
-        }
+            if (!institucionId) {
+                throw new NotFoundException('El formulario no tiene institución');
+            }
 
-        const now = new Date();
+            const now = new Date();
 
         // CREAR RESPUESTA
-        const respuestaCreada = await this.prisma.respuestaFormulario.create({
-        data: {
-            Formulario_ID,
-            Respuestas: respuestas,
-        },
-        });
+            const respuestaCreada = await this.prisma.respuestaFormulario.create({
+                data: {
+                    Formulario_ID,
+                    Respuestas: respuestas,
+                },
+            });
 
         // CREAR SOLICITUD
-        const solicitudCreada = await this.prisma.solicitud.create({
-        data: {
-            Usuario_ID: userId,
-            Institucion_ID: institucionId,
-            Formulario_ID,
-            Respuesta_ID: respuestaCreada.Respuesta_ID,
+            const solicitudCreada = await this.prisma.solicitud.create({
+                data: {
+                    Usuario_ID: userId,
+                    Institucion_ID: institucionId,
+                    Formulario_ID,
+                    Respuesta_ID: respuestaCreada.Respuesta_ID,
 
-            Estado: EstadoSolicitud.PENDIENTE,
-            Respuesta: '',
-            Comentarios: '',
-            Fecha_Emision: now,
-            Fecha_Cierre: now,
-            Fecha_Ultima_Actualizacion: now,
-        },
-        });
+                    Estado: EstadoSolicitud.PENDIENTE,
+                    Respuesta: '',
+                    Comentarios: '',
+                    Fecha_Emision: now,
+                    Fecha_Cierre: now,
+                    Fecha_Ultima_Actualizacion: now,
+                },
+            });
 
         // VALIDAR TARIFARIOS EXISTEN
-        const tarifariosIds = detalles.map((d: any) => d.tarifarioId);
+            const tarifariosIds = detalles.map((d: any) => d.tarifarioId);
 
-        const tarifarios = await this.prisma.tarifarioDeServicio.findMany({
-        where: {
-            Tarifario_Codigo: {
-            in: tarifariosIds,
-            },
-        },
-        });
+            const tarifarios = await this.prisma.tarifarioDeServicio.findMany({
+                where: {
+                    Tarifario_Codigo: {
+                        in: tarifariosIds,
+                    },
+                },
+            });
 
-        if (tarifarios.length !== detalles.length) {
-        throw new BadRequestException('Uno o más tarifarios no existen');
-        }
+            if (tarifarios.length !== detalles.length) {
+                throw new BadRequestException('Uno o más tarifarios no existen');
+            }
 
         // CREAR DETALLES
-        for (const detalle of detalles) {
-        await this.prisma.detalleSolicitud.create({
-            data: {
-            Solicitud_ID: solicitudCreada.Numero_Solicitud,
-            Tarifario_Codigo: detalle.tarifarioId,
-            Cantidad: detalle.cantidad,
-            },
-        });
-        }
+            for (const detalle of detalles) {
+                await this.prisma.detalleSolicitud.create({
+                    data: {
+                        Solicitud_ID: solicitudCreada.Numero_Solicitud,
+                        Tarifario_Codigo: detalle.tarifarioId,
+                        Cantidad: detalle.cantidad,
+                    },
+                });
+            }
 
         // OPCIONAL: CALCULAR MONTO AQUÍ MISMO
-        const total = tarifarios.reduce((acc, t) => {
-        const item = detalles.find((d: any) => d.tarifarioId === t.Tarifario_Codigo);
-        return acc + Number(t.Costo_Por_Servicio) * (item?.cantidad || 1);
-        }, 0);
+            const total = tarifarios.reduce((acc, t) => {
+                const item = detalles.find((d: any) => d.tarifarioId === t.Tarifario_Codigo);
+                return acc + Number(t.Costo_Por_Servicio) * (item?.cantidad || 1);
+            }, 0);
 
-        resultados.push({
-        ...solicitudCreada,
-        monto_estimado: total, // útil para frontend
-        });
-    }
+            resultados.push({
+                ...solicitudCreada,
+                monto_estimado: total,
+            });
 
-    return resultados;
+            // 🔥 EMAIL: SOLICITUD CREADA
+            this.emailService
+                .sendSolicitudCreada(usuario.Correo, {
+                    nombre: usuario.Nombre,
+                    numero: solicitudCreada.Numero_Solicitud,
+                    estado: solicitudCreada.Estado,
+                })
+                .catch((error) => {
+                    console.error(
+                        `Error enviando email de solicitud #${solicitudCreada.Numero_Solicitud}:`,
+                        error,
+                    );
+                });
+        }
+
+        return resultados;
     }
 
     // OBTENER SOLICITUDES DEL USUARIO
@@ -206,6 +232,7 @@ export class SolicitudService {
         const solicitud = await this.prisma.solicitud.findUnique({
             where: { Numero_Solicitud: numeroSolicitud },
             include: {
+                usuario: true,
                 formulario: {
                     include: {
                         tipoDocumento: true,
@@ -248,27 +275,42 @@ export class SolicitudService {
             },
         });
 
-        // 🔥 ACTUALIZAR SOLICITUD
-        return this.prisma.solicitud.update({
+        const solicitudActualizada = await this.prisma.solicitud.update({
             where: { Numero_Solicitud: numeroSolicitud },
             data: {
                 Estado: EstadoSolicitud.APROBADA,
-                Comentarios: comentario, // 🔥 ahora sí se guarda
+                Comentarios: comentario,
                 Fecha_Cierre: new Date(),
                 Fecha_Ultima_Actualizacion: new Date(),
             },
         });
+
+        // 🔥 EMAIL: SOLICITUD APROBADA
+        this.emailService
+            .sendSolicitudAprobada(solicitud.usuario.Correo, {
+                nombre: solicitud.usuario.Nombre,
+                numero: solicitud.Numero_Solicitud,
+                link: fileUrl,
+            })
+            .catch((error) => {
+                console.error(
+                    `Error enviando email de aprobación #${numeroSolicitud}:`,
+                    error,
+                );
+            });
+
+        return solicitudActualizada;
     }
 
     async calcularMontoDesdeSolicitud(solicitudId: number) {
         const solicitud = await this.prisma.solicitud.findUnique({
             where: { Numero_Solicitud: solicitudId },
             include: {
-            detalles: {
-                include: {
-                tarifario: true,
+                detalles: {
+                    include: {
+                        tarifario: true,
+                    },
                 },
-            },
             },
         });
 
