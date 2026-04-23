@@ -1,5 +1,5 @@
-import dns from 'dns';
-dns.setDefaultResultOrder('ipv4first');
+// import dns from 'dns';
+// dns.setDefaultResultOrder('ipv4first');
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './modules/app.module';
