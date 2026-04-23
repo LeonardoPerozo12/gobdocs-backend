@@ -35,6 +35,7 @@ export class SolicitudService {
         for (const solicitudItem of solicitudes) {
             const { Formulario_ID, respuestas, detalles } = solicitudItem;
 
+        // VALIDACIONES
             if (!Formulario_ID) {
                 throw new NotFoundException('Formulario_ID es requerido');
             }
@@ -62,6 +63,7 @@ export class SolicitudService {
 
             const now = new Date();
 
+        // CREAR RESPUESTA
             const respuestaCreada = await this.prisma.respuestaFormulario.create({
                 data: {
                     Formulario_ID,
@@ -69,12 +71,14 @@ export class SolicitudService {
                 },
             });
 
+        // CREAR SOLICITUD
             const solicitudCreada = await this.prisma.solicitud.create({
                 data: {
                     Usuario_ID: userId,
                     Institucion_ID: institucionId,
                     Formulario_ID,
                     Respuesta_ID: respuestaCreada.Respuesta_ID,
+
                     Estado: EstadoSolicitud.PENDIENTE,
                     Respuesta: '',
                     Comentarios: '',
@@ -84,6 +88,7 @@ export class SolicitudService {
                 },
             });
 
+        // VALIDAR TARIFARIOS EXISTEN
             const tarifariosIds = detalles.map((d: any) => d.tarifarioId);
 
             const tarifarios = await this.prisma.tarifarioDeServicio.findMany({
@@ -98,6 +103,7 @@ export class SolicitudService {
                 throw new BadRequestException('Uno o más tarifarios no existen');
             }
 
+        // CREAR DETALLES
             for (const detalle of detalles) {
                 await this.prisma.detalleSolicitud.create({
                     data: {
@@ -108,6 +114,7 @@ export class SolicitudService {
                 });
             }
 
+        // OPCIONAL: CALCULAR MONTO AQUÍ MISMO
             const total = tarifarios.reduce((acc, t) => {
                 const item = detalles.find((d: any) => d.tarifarioId === t.Tarifario_Codigo);
                 return acc + Number(t.Costo_Por_Servicio) * (item?.cantidad || 1);
@@ -158,7 +165,7 @@ export class SolicitudService {
         });
     }
 
-    // 🔥 NUEVO MÉTODO RESTAURADO (ESTO TE ARREGLA EL ERROR)
+    // OBTENER SOLICITUDES POR INSTITUCIÓN
     async getSolicitudesByInstitucion(institucionId: string) {
         return this.prisma.solicitud.findMany({
             where: {
@@ -213,6 +220,7 @@ export class SolicitudService {
         comentario?: string,
     ) {
 
+        // 🔥 VALIDACIONES
         if (!file) {
             throw new BadRequestException("Debe subir un archivo");
         }
@@ -237,10 +245,12 @@ export class SolicitudService {
             throw new NotFoundException("Solicitud no encontrada");
         }
 
+        // 🔥 evitar reprocesar
         if (solicitud.Estado === EstadoSolicitud.APROBADA) {
             throw new BadRequestException("La solicitud ya fue aprobada");
         }
 
+        // 🔥 VALIDACIÓN TS SAFE
         if (!solicitud.formulario?.tipoDocumento) {
             throw new NotFoundException(
                 "El formulario no tiene tipo de documento asociado"
@@ -250,8 +260,10 @@ export class SolicitudService {
         const tipoDocumentoId =
             solicitud.formulario.tipoDocumento.TipoDocumento_ID;
 
+        // 🔥 MOCK S3 (luego reemplazas)
         const fileUrl = `documentos/${numeroSolicitud}-${Date.now()}.pdf`;
 
+        // 🔥 CREAR DOCUMENTO
         await this.prisma.documento.create({
             data: {
                 Nombre_Archivo: file.originalname,
