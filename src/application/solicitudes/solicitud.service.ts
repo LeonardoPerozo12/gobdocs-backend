@@ -2,9 +2,9 @@ import { Injectable, NotFoundException, BadRequestException } from "@nestjs/comm
 import { SolicitudRepository } from "src/infrastructure/repositories/solicitud.repository";
 import { EstadoSolicitud } from "@prisma/client";
 import { PrismaService } from "src/infrastructure/db/prisma.service";
-
-// 🔥 IMPORTAR EMAIL
+import { EstadoDocumento } from "@prisma/client";
 import { EmailService } from "src/infrastructure/email/email.service";
+import { UpdateEstadoSolicitudDto } from "src/common/dtos/solicitud/update-estado-solicitud.dto";
 
 @Injectable()
 export class SolicitudService {
@@ -269,7 +269,7 @@ export class SolicitudService {
                 Nombre_Archivo: file.originalname,
                 Url_Archivo: fileUrl,
                 Fecha_Emision: new Date(),
-                Estado: "GENERADO",
+                Estado: EstadoDocumento.GENERADO,
                 TipoDocumento_ID: tipoDocumentoId,
                 Solicitud_ID: numeroSolicitud,
             },
@@ -302,6 +302,54 @@ export class SolicitudService {
         return solicitudActualizada;
     }
 
+    async rechazarSolicitud(numeroSolicitud: number, dto: UpdateEstadoSolicitudDto,) {
+        
+        const { estado, comentario } = dto;
+
+        if(estado == EstadoSolicitud.RECHAZADA){
+            throw new BadRequestException("Para rechazar una solicitud, el estado debe ser RECHAZADA");
+        }
+
+        if (!comentario || !comentario.trim()) {
+            throw new BadRequestException("El comentario es obligatorio para rechazar una solicitud");
+        }
+
+        const solicitud = await this.prisma.solicitud.findUnique({
+            where: { Numero_Solicitud: numeroSolicitud },
+            include: {
+                usuario: true,
+            },
+        });
+
+        if (!solicitud) {
+            throw new NotFoundException("Solicitud no encontrada");
+        }
+        if (solicitud.Estado === EstadoSolicitud.APROBADA) {
+            throw new BadRequestException("No se puede rechazar una solicitud aprobada");
+        }
+        if (solicitud.Estado === EstadoSolicitud.RECHAZADA) {
+            throw new BadRequestException("La solicitud ya fue rechazada");
+        }
+        const updatedSolicitud = await this.prisma.solicitud.update({
+            where: { Numero_Solicitud: numeroSolicitud },
+            data: {
+                Estado: EstadoSolicitud.RECHAZADA,
+                Comentarios: comentario,
+                Fecha_Cierre: new Date(),
+                Fecha_Ultima_Actualizacion: new Date(),
+            },
+        });
+
+        this.emailService
+            .sendSolicitudRechazada(solicitud.usuario.Correo, {
+                nombre: solicitud.usuario.Nombre,
+                numero: solicitud.Numero_Solicitud,
+                motivo: comentario,
+            })
+            .catch(console.error);
+
+        return updatedSolicitud;
+    }
     async calcularMontoDesdeSolicitud(solicitudId: number) {
         const solicitud = await this.prisma.solicitud.findUnique({
             where: { Numero_Solicitud: solicitudId },
