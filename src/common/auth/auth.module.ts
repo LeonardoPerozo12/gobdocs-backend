@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
+import { EmailModule } from 'src/modules/email.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { RolesGuard } from './roles.guard';
       secret: process.env.JWT_SECRET || 'gobdocs_dev_secret',
       signOptions: { expiresIn: '1h' },
     }),
+    EmailModule,
   ],
   controllers: [AuthController],
   providers: [
