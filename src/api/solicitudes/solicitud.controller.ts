@@ -7,11 +7,15 @@ import {
   Get, 
   Param,
   UploadedFile,
-  UseInterceptors
+  UseInterceptors,
+  Patch
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { SolicitudService } from "src/application/solicitudes/solicitud.service";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { Roles } from "src/common/auth/roles.decorator";
+import { EstadoSolicitud, RolUsuario } from "@prisma/client";
+import { UpdateEstadoSolicitudDto } from "src/common/dtos/solicitud/update-estado-solicitud.dto";
 
 @Controller("solicitudes")
 export class SolicitudController {
@@ -45,14 +49,14 @@ export class SolicitudController {
     );
   }
 
-  // 🔥 DETALLE DE UNA SOLICITUD
+  // DETALLE DE UNA SOLICITUD
   @Get(":id")
   @UseGuards(AuthGuard("jwt"))
   getSolicitudById(@Param("id") id: string) {
     return this.solicitudService.getSolicitudById(Number(id));
   }
 
-  // 🔥 EMITIR DOCUMENTO (OPERADOR)
+  // EMITIR DOCUMENTO (OPERADOR)
   @Post(":id/documento")
   @UseGuards(AuthGuard("jwt"))
   @UseInterceptors(FileInterceptor("file"))
@@ -65,6 +69,20 @@ export class SolicitudController {
       Number(id),
       file,
       comentario
+    );
+  }
+
+  // Reject solicitud (OPERADOR)
+  @Patch(":id/rechazar")
+  @Roles(RolUsuario.OPERADOR)
+  rechazarSolicitud(
+    @Param("id") id: string,
+    @Body() dto: UpdateEstadoSolicitudDto
+  ) {
+    dto.estado = EstadoSolicitud.RECHAZADA;
+    return this.solicitudService.rechazarSolicitud(
+      Number(id),
+      dto
     );
   }
 }

@@ -11,7 +11,7 @@ export class StripeService {
     async createPaymentIntent(amount: number) {
         return this.stripe.paymentIntents.create({
         amount,
-        currency: 'usd', // puedes cambiar a dop si luego activas
+        currency: 'usd',
         });
   }
   async getPaymentIntent(paymentIntentId: string) {

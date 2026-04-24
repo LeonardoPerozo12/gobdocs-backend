@@ -1,19 +1,20 @@
 // src/infrastructure/email/email.service.ts
 import { Injectable } from '@nestjs/common';
 import { Resend } from 'resend';
-
-// 🔹 Importar plantillas
 import { welcomeTemplate } from './templates/welcome.template';
 import { solicitudCreadaTemplate } from './templates/solicitud-creada.template';
 import { solicitudAprobadaTemplate } from './templates/solicitud-aprobada.template';
+import { solicitudRechazadaTemplate } from './templates/solicitud-rechazada.template';
+import { resetPasswordTemplate } from './templates/reset-password.template';
+import { passwordChangedTemplate } from './templates/password-changed.template';
 
 @Injectable()
 export class EmailService {
   private resend: Resend;
 
   constructor() {
-    console.log("🔑 RESEND KEY:", process.env.RESEND_API_KEY);
-    console.log("📨 EMAIL FROM:", process.env.EMAIL_FROM);
+    console.log('🔑 RESEND KEY:', process.env.RESEND_API_KEY);
+    console.log('📨 EMAIL FROM:', process.env.EMAIL_FROM);
     this.resend = new Resend(process.env.RESEND_API_KEY!);
   }
 
@@ -55,7 +56,7 @@ export class EmailService {
     return this.sendEmail(
       to,
       'Registro exitoso en GobDocs',
-      welcomeTemplate(nombre, fecha)
+      welcomeTemplate(nombre, fecha),
     );
   }
 
@@ -67,7 +68,7 @@ export class EmailService {
       numero: number;
       fecha?: Date;
       estado: string;
-    }
+    },
   ) {
     const fechaFormateada = this.formatFecha(data.fecha);
 
@@ -78,8 +79,8 @@ export class EmailService {
         data.nombre,
         data.numero,
         fechaFormateada,
-        data.estado
-      )
+        data.estado,
+      ),
     );
   }
 
@@ -91,7 +92,7 @@ export class EmailService {
       numero: number;
       fecha?: Date;
       link: string;
-    }
+    },
   ) {
     const fechaFormateada = this.formatFecha(data.fecha);
 
@@ -102,8 +103,55 @@ export class EmailService {
         data.nombre,
         data.numero,
         fechaFormateada,
-        data.link
-      )
+        data.link,
+      ),
+    );
+  }
+  async sendSolicitudRechazada(
+    to: string,
+    data: {
+      nombre: string;
+      numero: number;
+      fecha?: Date;
+      motivo: string;
+    },
+  ) {
+    const fechaFormateada = this.formatFecha(data.fecha);
+
+    return this.sendEmail(
+      to,
+      'Solicitud rechazada',
+      solicitudRechazadaTemplate(
+        data.nombre,
+        data.numero,
+        fechaFormateada,
+        data.motivo,
+      ),
+    );
+  }
+  async sendResetPasswordEmail(
+    to: string,
+    data: {
+      nombre: string;
+      link: string;
+    },
+  ) {
+    return this.sendEmail(
+      to,
+      'Restablecer contraseña',
+      resetPasswordTemplate(data.nombre, data.link),
+    );
+  }
+  async sendPasswordChangedEmail(
+    to: string,
+    data: {
+      nombre: string;
+    },
+  ) {
+    return this.sendEmail(
+      to,
+      'Contraseña actualizada',
+      passwordChangedTemplate(data.nombre),
     );
   }
 }
