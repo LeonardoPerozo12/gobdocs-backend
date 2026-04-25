@@ -5,6 +5,7 @@ import { UserInfraModule } from '../infrastructure/InfraModules/user-infra.modul
 import { AuthModule } from '../common/auth/auth.module';
 import { InstitutionInfraModule } from 'src/infrastructure/InfraModules/institution-infra.module';
 import { EmailModule } from './email.module';
+import { ExcelService } from 'src/application/excel/excel.service';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { EmailModule } from './email.module';
   ],
   providers: [
     UserService,
+    ExcelService,
   ],
   exports: [
     UserService,
