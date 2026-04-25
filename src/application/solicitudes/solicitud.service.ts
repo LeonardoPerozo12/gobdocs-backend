@@ -219,15 +219,87 @@ export class SolicitudService {
       },
     });
 
-    void this.emailService.sendSolicitudRechazada(
-      solicitud.usuario.Correo,
-      {
-        nombre: solicitud.usuario.Nombre,
-        numero: solicitud.Numero_Solicitud,
-        motivo: comentario,
-      },
-    );
+    void this.emailService.sendSolicitudRechazada(solicitud.usuario.Correo, {
+      nombre: solicitud.usuario.Nombre,
+      numero: solicitud.Numero_Solicitud,
+      motivo: comentario,
+    });
 
     return updated;
+  }
+  // =========================
+  // GET SOLICITUDES USUARIO
+  // =========================
+  async getSolicitudesByUsuario(usuarioId: string) {
+    return this.prisma.solicitud.findMany({
+      where: { Usuario_ID: usuarioId },
+      include: {
+        formulario: { include: { tipoDocumento: true } },
+        respuesta: true,
+        institucion: true,
+        documentos: true,
+      },
+      orderBy: { Fecha_Emision: 'desc' },
+    });
+  }
+
+  // =========================
+  // GET SOLICITUDES INSTITUCION
+  // =========================
+  async getSolicitudesByInstitucion(institucionId: string) {
+    return this.prisma.solicitud.findMany({
+      where: { Institucion_ID: institucionId },
+      include: {
+        usuario: true,
+        formulario: { include: { tipoDocumento: true } },
+        respuesta: true,
+        documentos: true,
+      },
+      orderBy: { Fecha_Emision: 'desc' },
+    });
+  }
+
+  // =========================
+  // GET DETALLE
+  // =========================
+  async getSolicitudById(numeroSolicitud: number) {
+    const solicitud = await this.prisma.solicitud.findUnique({
+      where: { Numero_Solicitud: numeroSolicitud },
+      include: {
+        usuario: true,
+        institucion: true,
+        formulario: { include: { tipoDocumento: true } },
+        respuesta: true,
+        documentos: true,
+      },
+    });
+
+    if (!solicitud) {
+      throw new NotFoundException('Solicitud no encontrada');
+    }
+
+    return solicitud;
+  }
+
+  // =========================
+  // CALCULAR MONTO
+  // =========================
+  async calcularMontoDesdeSolicitud(solicitudId: number) {
+    const solicitud = await this.prisma.solicitud.findUnique({
+      where: { Numero_Solicitud: solicitudId },
+      include: {
+        detalles: {
+          include: { tarifario: true },
+        },
+      },
+    });
+
+    if (!solicitud) {
+      throw new NotFoundException('Solicitud no encontrada');
+    }
+
+    return solicitud.detalles.reduce((acc, d) => {
+      return acc + Number(d.tarifario.Costo_Por_Servicio) * d.Cantidad;
+    }, 0);
   }
 }
