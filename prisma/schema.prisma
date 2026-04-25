@@ -172,7 +172,7 @@ model Solicitud {
   Respuesta                  String
   Comentarios                String
   Fecha_Emision              DateTime        @db.Date
-  Fecha_Cierre               DateTime        @db.Date
+  Fecha_Cierre               DateTime?       @db.Date
   Fecha_Ultima_Actualizacion DateTime        @db.Date
   Estado                     EstadoSolicitud
   Institucion_ID             String          @db.Uuid
