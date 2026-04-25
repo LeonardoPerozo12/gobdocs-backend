@@ -306,7 +306,7 @@ export class SolicitudService {
         
         const { estado, comentario } = dto;
 
-        if(estado == EstadoSolicitud.RECHAZADA){
+        if(estado == EstadoSolicitud.PENDIENTE){
             throw new BadRequestException("Para rechazar una solicitud, el estado debe ser RECHAZADA");
         }
 
