@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { UserRepository } from '../../infrastructure/repositories/user.repository';
 import { UserRegisterDto } from '../../common/dtos/user/user.register.dto';
@@ -11,15 +12,23 @@ import { OperatorRegisterDto } from 'src/common/dtos/user/user.operator.register
 import { InstitutionRepository } from 'src/infrastructure/repositories/institution.repository';
 import { AdminRegisterDto } from 'src/common/dtos/user/user.admin.register.dto';
 
-// 🔥 IMPORTAR EMAIL SERVICE
 import { EmailService } from 'src/infrastructure/email/email.service';
+import { ExcelService } from '../excel/excel.service';
+import { randomBytes } from 'crypto';
+
+type ResultadoCarga = {
+  correo: string;
+  status: 'success' | 'error';
+  reason?: string;
+};
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly institutionRepository: InstitutionRepository,
-    private readonly emailService: EmailService, // 👈 INYECTAR
+    private readonly emailService: EmailService,
+    private readonly excelService: ExcelService,
   ) {}
 
   // ===============================
@@ -147,5 +156,100 @@ export class UserService {
 
     const { Contrasena, ...safeUser } = usuario;
     return safeUser;
+  }
+
+  async bulkCreateOperadores(institucionId: string, file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Archivo requerido');
+    }
+
+    const data = this.excelService.parseExcel(file);
+
+    const resultados: ResultadoCarga[] = [];
+
+    const institution = await this.institutionRepository.findUnique({
+      where: { Institucion_ID: institucionId },
+    });
+
+    if (!institution) {
+      throw new NotFoundException('Institución no encontrada');
+    }
+    for (const row of data as any[]) {
+      const requiredFields = ['nombre', 'apellido', 'correo', 'cedula'];
+
+      const hasValidStructure = requiredFields.every((field) =>
+        row.hasOwnProperty(field),
+      );
+
+      if (!hasValidStructure) {
+        throw new BadRequestException(
+          'Formato de Excel inválido. Columnas requeridas: nombre, apellido, correo, cedula',
+        );
+      }
+
+      const nombre = row['nombre']?.toString().trim();
+      const apellido = row['apellido']?.toString().trim();
+      const correo = row['correo']?.toString().trim().toLowerCase();
+      const cedula = row['cedula']?.toString().trim();
+
+      if (!nombre || !apellido || !correo || !cedula) {
+        resultados.push({
+          correo: correo || 'N/A',
+          status: 'error',
+          reason: 'Datos incompletos',
+        });
+        continue;
+      }
+
+      const tempPassword = randomBytes(6).toString('base64').slice(0, 10);
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      const existing = await this.userRepository.findByEmail(correo);
+
+      if (existing) {
+        resultados.push({
+          correo,
+          status: 'error',
+          reason: 'Correo ya existe',
+        });
+        continue;
+      }
+
+      try {
+        await this.userRepository.create({
+          data: {
+            Nombre: `${nombre} ${apellido}`,
+            Correo: correo,
+            Cedula: cedula,
+            Contrasena: hashedPassword,
+            Rol: 'OPERADOR',
+            Institucion_ID: institucionId,
+            // DebeCambiarContrasena: true,
+          },
+        });
+
+        void this.emailService.sendOperatorWelcomeEmail(correo, {
+          nombre: `${nombre} ${apellido}`,
+          correo,
+          password: tempPassword,
+        });
+
+        resultados.push({
+          correo,
+          status: 'success',
+        });
+      } catch (error) {
+        resultados.push({
+          correo,
+          status: 'error',
+          reason: 'Duplicado o error en DB',
+        });
+      }
+    }
+
+    return {
+      total: data.length,
+      exitosos: resultados.filter((r) => r.status === 'success').length,
+      errores: resultados.filter((r) => r.status === 'error'),
+    };
   }
 }

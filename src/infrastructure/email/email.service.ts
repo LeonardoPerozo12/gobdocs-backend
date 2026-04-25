@@ -7,6 +7,7 @@ import { solicitudAprobadaTemplate } from './templates/solicitud-aprobada.templa
 import { solicitudRechazadaTemplate } from './templates/solicitud-rechazada.template';
 import { resetPasswordTemplate } from './templates/reset-password.template';
 import { passwordChangedTemplate } from './templates/password-changed.template';
+import { operatorWelcomeTemplate } from './templates/operator-welcome.template';
 
 @Injectable()
 export class EmailService {
@@ -152,6 +153,20 @@ export class EmailService {
       to,
       'Contraseña actualizada',
       passwordChangedTemplate(data.nombre),
+    );
+  }
+  async sendOperatorWelcomeEmail(
+    to: string,
+    data: {
+      nombre: string;
+      correo: string;
+      password: string;
+    },
+  ) {
+    return this.sendEmail(
+      to,
+      'Acceso como operador en GobDocs',
+      operatorWelcomeTemplate(data.nombre, data.correo, data.password),
     );
   }
 }
