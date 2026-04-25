@@ -346,6 +346,41 @@ export class SolicitudService {
         return updatedSolicitud;
     }
 
+    //CANCELAR SOLICITUD (CIUDADANO)
+    async cancelarSolicitud(numeroSolicitud: number, userId: string) {
+
+    const solicitud = await this.prisma.solicitud.findUnique({
+        where: { Numero_Solicitud: numeroSolicitud },
+    });
+
+    if (!solicitud) {
+        throw new NotFoundException('Solicitud no encontrada');
+    }
+
+    // 🔒 seguridad: solo el dueño puede cancelarla
+    if (solicitud.Usuario_ID !== userId) {
+        throw new BadRequestException('No puedes cancelar esta solicitud');
+    }
+
+    // ❌ no cancelar aprobadas
+    if (solicitud.Estado === EstadoSolicitud.APROBADA) {
+        throw new BadRequestException('No puedes cancelar una solicitud aprobada');
+    }
+
+    // ❌ evitar doble cancelación
+    if (solicitud.Estado === EstadoSolicitud.CANCELADA) {
+        throw new BadRequestException('La solicitud ya está cancelada');
+    }
+
+    return this.prisma.solicitud.update({
+        where: { Numero_Solicitud: numeroSolicitud },
+        data: {
+        Estado: EstadoSolicitud.CANCELADA,
+        Fecha_Ultima_Actualizacion: new Date(),
+        },
+    });
+    }
+
     // =========================
     // MONTO
     // =========================
