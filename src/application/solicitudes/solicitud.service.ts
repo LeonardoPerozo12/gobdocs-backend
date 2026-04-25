@@ -167,7 +167,12 @@ export class SolicitudService {
     });
 
     if (!solicitud) throw new NotFoundException('Solicitud no encontrada');
-
+    
+    if (!solicitud.formulario?.tipoDocumento) {
+      throw new NotFoundException(
+        'El formulario no tiene tipo de documento asociado',
+      );
+    }
     if (
       solicitud.Estado === EstadoSolicitud.APROBADA ||
       solicitud.Estado === EstadoSolicitud.RECHAZADA
@@ -190,8 +195,7 @@ export class SolicitudService {
         Url_Archivo: storedKey,
         Fecha_Emision: new Date(),
         Estado: EstadoDocumento.GENERADO,
-        TipoDocumento_ID:
-          solicitud.formulario.tipoDocumento.TipoDocumento_ID,
+        TipoDocumento_ID: solicitud.formulario.tipoDocumento.TipoDocumento_ID,
         Solicitud_ID: numeroSolicitud,
       },
     });
@@ -258,5 +262,26 @@ export class SolicitudService {
     });
 
     return updated;
+  }
+  // =========================
+  // MONTO
+  // =========================
+  async calcularMontoDesdeSolicitud(solicitudId: number) {
+    const solicitud = await this.prisma.solicitud.findUnique({
+      where: { Numero_Solicitud: solicitudId },
+      include: {
+        detalles: {
+          include: { tarifario: true },
+        },
+      },
+    });
+
+    if (!solicitud) {
+      throw new NotFoundException('Solicitud no encontrada');
+    }
+
+    return solicitud.detalles.reduce((acc, d) => {
+      return acc + Number(d.tarifario.Costo_Por_Servicio) * d.Cantidad;
+    }, 0);
   }
 }
