@@ -17,11 +17,8 @@ export class SolicitudService {
     private readonly s3Service: S3Service,
   ) {}
 
-    // =========================
-    // CREAR SOLICITUD
-    // =========================
-    async createSolicitud(userId: string, data: any) {
-        const { solicitudes } = data;
+  async createSolicitud(userId: string, data: any) {
+    const { solicitudes } = data;
 
     if (!solicitudes?.length) {
       throw new NotFoundException('No hay solicitudes');
@@ -57,11 +54,7 @@ export class SolicitudService {
         throw new NotFoundException('Formulario no encontrado');
       }
 
-            const institucionId = formulario.tipoDocumento?.Institucion_ID;
-
-            if (!institucionId) {
-                throw new NotFoundException('El formulario no tiene institución');
-            }
+      const institucionId = formulario.tipoDocumento?.Institucion_ID;
 
       const now = new Date();
 
@@ -72,144 +65,82 @@ export class SolicitudService {
         },
       });
 
-            const solicitudCreada = await this.prisma.solicitud.create({
-                data: {
-                    Usuario_ID: userId,
-                    Institucion_ID: institucionId,
-                    Formulario_ID,
-                    Respuesta_ID: respuesta.Respuesta_ID,
-                    Estado: EstadoSolicitud.PENDIENTE,
-                    Respuesta: '',
-                    Comentarios: '',
-                    Fecha_Emision: now,
-                    Fecha_Cierre: now,
-                    Fecha_Ultima_Actualizacion: now,
-                },
-            });
+      const solicitud = await this.prisma.solicitud.create({
+        data: {
+          Usuario_ID: userId,
+          Institucion_ID: institucionId!,
+          Formulario_ID,
+          Respuesta_ID: respuesta.Respuesta_ID,
+          Estado: EstadoSolicitud.PENDIENTE,
+          Respuesta: '',
+          Comentarios: '',
+          Fecha_Emision: now,
+          Fecha_Cierre: null,
+          Fecha_Ultima_Actualizacion: now,
+        },
+      });
 
-            const tarifariosIds = detalles.map((d: any) => d.tarifarioId);
-
-            const tarifarios = await this.prisma.tarifarioDeServicio.findMany({
-                where: {
-                    Tarifario_Codigo: { in: tarifariosIds },
-                },
-            });
-
-            if (tarifarios.length !== detalles.length) {
-                throw new BadRequestException('Uno o más tarifarios no existen');
-            }
-
-            for (const detalle of detalles) {
-                await this.prisma.detalleSolicitud.create({
-                    data: {
-                        Solicitud_ID: solicitudCreada.Numero_Solicitud,
-                        Tarifario_Codigo: detalle.tarifarioId,
-                        Cantidad: detalle.cantidad,
-                    },
-                });
-            }
-
-            const total = tarifarios.reduce((acc, t) => {
-                const item = detalles.find((d: any) => d.tarifarioId === t.Tarifario_Codigo);
-                return acc + Number(t.Costo_Por_Servicio) * (item?.cantidad || 1);
-            }, 0);
-
-            resultados.push({
-                ...solicitudCreada,
-                monto_estimado: total,
-            });
-
-            this.emailService
-                .sendSolicitudCreada(usuario.Correo, {
-                    nombre: usuario.Nombre,
-                    numero: solicitudCreada.Numero_Solicitud,
-                    estado: solicitudCreada.Estado,
-                })
-                .catch(console.error);
-        }
-
-        return resultados;
-    }
-
-    // =========================
-    // MAPEAR DOCUMENTOS → URLS
-    // =========================
-    private async attachSignedUrls(solicitudes: any[]) {
-        return Promise.all(
-            solicitudes.map(async (s) => {
-                const docs = await Promise.all(
-                    (s.documentos || []).map(async (doc: any) => {
-                        let url: string | null = null;
-
-                        if (doc.Url_Archivo) {
-                            url = await this.s3Service.getSignedGetUrl(doc.Url_Archivo, 60 * 60);
-                        }
-
-                        return {
-                            ...doc,
-                            url,
-                        };
-                    })
-                );
-
-                return {
-                    ...s,
-                    documentos: docs,
-                };
-            })
-        );
-    }
-
-    // =========================
-    // GET USUARIO
-    // =========================
-    async getSolicitudesByUsuario(usuarioId: string) {
-        const solicitudes = await this.prisma.solicitud.findMany({
-            where: { Usuario_ID: usuarioId },
-            include: {
-                formulario: { include: { tipoDocumento: true } },
-                respuesta: true,
-                institucion: true,
-                documentos: true,
+      await Promise.all(
+        detalles.map((d: any) =>
+          this.prisma.detalleSolicitud.create({
+            data: {
+              Solicitud_ID: solicitud.Numero_Solicitud,
+              Tarifario_Codigo: d.tarifarioId,
+              Cantidad: d.cantidad,
             },
-            orderBy: { Fecha_Emision: 'desc' },
-        });
+          }),
+        ),
+      );
 
-        return this.attachSignedUrls(solicitudes);
+      resultados.push(solicitud);
+
+      void this.emailService.sendSolicitudCreada(usuario.Correo, {
+        nombre: usuario.Nombre,
+        numero: solicitud.Numero_Solicitud,
+        estado: solicitud.Estado,
+      });
     }
 
-    // =========================
-    // GET INSTITUCIÓN
-    // =========================
-    async getSolicitudesByInstitucion(institucionId: string) {
-        const solicitudes = await this.prisma.solicitud.findMany({
-            where: { Institucion_ID: institucionId },
-            include: {
-                usuario: true,
-                formulario: { include: { tipoDocumento: true } },
-                respuesta: true,
-                documentos: true,
-            },
-            orderBy: { Fecha_Emision: 'desc' },
-        });
+    return resultados;
+  }
 
-        return this.attachSignedUrls(solicitudes);
-    }
+  async getSolicitudesByUsuario(usuarioId: string) {
+    return this.prisma.solicitud.findMany({
+      where: { Usuario_ID: usuarioId },
+      include: {
+        formulario: { include: { tipoDocumento: true } },
+        respuesta: true,
+        institucion: true,
+        documentos: true,
+      },
+      orderBy: { Fecha_Emision: 'desc' },
+    });
+  }
 
-    // =========================
-    // DETALLE
-    // =========================
-    async getSolicitudById(numeroSolicitud: number) {
-        const solicitud = await this.prisma.solicitud.findUnique({
-            where: { Numero_Solicitud: numeroSolicitud },
-            include: {
-                usuario: true,
-                institucion: true,
-                formulario: { include: { tipoDocumento: true } },
-                respuesta: true,
-                documentos: true,
-            },
-        });
+  async getSolicitudesByInstitucion(institucionId: string) {
+    return this.prisma.solicitud.findMany({
+      where: { Institucion_ID: institucionId },
+      include: {
+        usuario: true,
+        formulario: { include: { tipoDocumento: true } },
+        respuesta: true,
+        documentos: true,
+      },
+      orderBy: { Fecha_Emision: 'desc' },
+    });
+  }
+
+  async getSolicitudById(numeroSolicitud: number) {
+    const solicitud = await this.prisma.solicitud.findUnique({
+      where: { Numero_Solicitud: numeroSolicitud },
+      include: {
+        usuario: true,
+        institucion: true,
+        formulario: { include: { tipoDocumento: true } },
+        respuesta: true,
+        documentos: true,
+      },
+    });
 
     if (!solicitud) {
       throw new NotFoundException('Solicitud no encontrada');
@@ -218,154 +149,114 @@ export class SolicitudService {
     return solicitud;
   }
 
-    // =========================
-    // EMITIR DOCUMENTO (S3)
-    // =========================
-    async emitirDocumento(
-        numeroSolicitud: number,
-        file: Express.Multer.File,
-        comentario?: string,
+  async emitirDocumento(
+    numeroSolicitud: number,
+    file: Express.Multer.File,
+    comentario?: string,
+  ) {
+    if (!file) throw new BadRequestException('Debe subir un archivo');
+    if (!comentario?.trim())
+      throw new BadRequestException('Comentario obligatorio');
+
+    const solicitud = await this.prisma.solicitud.findUnique({
+      where: { Numero_Solicitud: numeroSolicitud },
+      include: {
+        usuario: true,
+        formulario: { include: { tipoDocumento: true } },
+      },
+    });
+
+    if (!solicitud) throw new NotFoundException('Solicitud no encontrada');
+
+    if (
+      solicitud.Estado === EstadoSolicitud.APROBADA ||
+      solicitud.Estado === EstadoSolicitud.RECHAZADA
     ) {
-
-        if (!file) throw new BadRequestException("Debe subir un archivo");
-        if (!comentario?.trim()) throw new BadRequestException("El comentario es obligatorio");
-
-        const solicitud = await this.prisma.solicitud.findUnique({
-            where: { Numero_Solicitud: numeroSolicitud },
-            include: {
-                usuario: true,
-                formulario: { include: { tipoDocumento: true } },
-            },
-        });
-
-        if (!solicitud) throw new NotFoundException("Solicitud no encontrada");
-
-        if (solicitud.Estado === EstadoSolicitud.APROBADA) {
-            throw new BadRequestException("La solicitud ya fue aprobada");
-        }
-
-        if (!solicitud.formulario?.tipoDocumento) {
-            throw new NotFoundException("El formulario no tiene tipo de documento asociado");
-        }
-
-        const tipoDocumentoId =
-            solicitud.formulario.tipoDocumento!.TipoDocumento_ID;
-
-        // 🔥 SUBIR A S3
-        const extension = file.originalname.split('.').pop();
-        const key = `documentos/${numeroSolicitud}-${Date.now()}.${extension}`;
-
-        const { key: storedKey } = await this.s3Service.uploadFile({
-            buffer: file.buffer,
-            key,
-            contentType: file.mimetype,
-        });
-
-        // 🔥 GUARDAR
-        await this.prisma.documento.create({
-            data: {
-                Nombre_Archivo: file.originalname,
-                Url_Archivo: storedKey,
-                Fecha_Emision: new Date(),
-                Estado: EstadoDocumento.GENERADO,
-                TipoDocumento_ID: tipoDocumentoId,
-                Solicitud_ID: numeroSolicitud,
-            },
-        });
-
-        const solicitudActualizada = await this.prisma.solicitud.update({
-            where: { Numero_Solicitud: numeroSolicitud },
-            data: {
-                Estado: EstadoSolicitud.APROBADA,
-                Comentarios: comentario,
-                Fecha_Cierre: new Date(),
-                Fecha_Ultima_Actualizacion: new Date(),
-            },
-        });
-
-        // 🔥 URL PARA EMAIL
-        const signedUrl = await this.s3Service.getSignedGetUrl(storedKey, 60 * 60);
-
-        this.emailService
-            .sendSolicitudAprobada(solicitud.usuario.Correo, {
-                nombre: solicitud.usuario.Nombre,
-                numero: solicitud.Numero_Solicitud,
-                link: signedUrl,
-            })
-            .catch(console.error);
-
-        return solicitudActualizada;
+      throw new BadRequestException('Solicitud cerrada');
     }
 
-    // =========================
-    // RECHAZAR
-    // =========================
-    async rechazarSolicitud(numeroSolicitud: number, dto: UpdateEstadoSolicitudDto) {
-        const { estado, comentario } = dto;
+    const extension = file.originalname.split('.').pop();
+    const key = `documentos/${numeroSolicitud}-${Date.now()}.${extension}`;
 
-        if (estado === EstadoSolicitud.PENDIENTE) {
-            throw new BadRequestException("Para rechazar una solicitud, el estado debe ser RECHAZADA");
-        }
+    const { key: storedKey } = await this.s3Service.uploadFile({
+      buffer: file.buffer,
+      key,
+      contentType: file.mimetype,
+    });
 
-        if (!comentario?.trim()) {
-            throw new BadRequestException("El comentario es obligatorio");
-        }
+    await this.prisma.documento.create({
+      data: {
+        Nombre_Archivo: file.originalname,
+        Url_Archivo: storedKey,
+        Fecha_Emision: new Date(),
+        Estado: EstadoDocumento.GENERADO,
+        TipoDocumento_ID:
+          solicitud.formulario.tipoDocumento.TipoDocumento_ID,
+        Solicitud_ID: numeroSolicitud,
+      },
+    });
 
-        const solicitud = await this.prisma.solicitud.findUnique({
-            where: { Numero_Solicitud: numeroSolicitud },
-            include: { usuario: true },
-        });
+    const updated = await this.prisma.solicitud.update({
+      where: { Numero_Solicitud: numeroSolicitud },
+      data: {
+        Estado: EstadoSolicitud.APROBADA,
+        Comentarios: comentario,
+        Fecha_Cierre: new Date(),
+        Fecha_Ultima_Actualizacion: new Date(),
+      },
+    });
 
-        if (!solicitud) throw new NotFoundException("Solicitud no encontrada");
+    const url = await this.s3Service.getSignedGetUrl(storedKey, 3600);
 
-        if (solicitud.Estado === EstadoSolicitud.APROBADA) {
-            throw new BadRequestException("No se puede rechazar una solicitud aprobada");
-        }
+    void this.emailService.sendSolicitudAprobada(solicitud.usuario.Correo, {
+      nombre: solicitud.usuario.Nombre,
+      numero: solicitud.Numero_Solicitud,
+      link: url,
+    });
 
-        if (solicitud.Estado === EstadoSolicitud.RECHAZADA) {
-            throw new BadRequestException("La solicitud ya fue rechazada");
-        }
+    return updated;
+  }
 
-        const updatedSolicitud = await this.prisma.solicitud.update({
-            where: { Numero_Solicitud: numeroSolicitud },
-            data: {
-                Estado: EstadoSolicitud.RECHAZADA,
-                Comentarios: comentario,
-                Fecha_Cierre: new Date(),
-                Fecha_Ultima_Actualizacion: new Date(),
-            },
-        });
+  async rechazarSolicitud(
+    numeroSolicitud: number,
+    dto: UpdateEstadoSolicitudDto,
+  ) {
+    const { comentario } = dto;
 
-        this.emailService
-            .sendSolicitudRechazada(solicitud.usuario.Correo, {
-                nombre: solicitud.usuario.Nombre,
-                numero: solicitud.Numero_Solicitud,
-                motivo: comentario,
-            })
-            .catch(console.error);
-
-        return updatedSolicitud;
+    if (!comentario?.trim()) {
+      throw new BadRequestException('Comentario obligatorio');
     }
 
-    // =========================
-    // MONTO
-    // =========================
-    async calcularMontoDesdeSolicitud(solicitudId: number) {
-        const solicitud = await this.prisma.solicitud.findUnique({
-            where: { Numero_Solicitud: solicitudId },
-            include: {
-                detalles: {
-                    include: { tarifario: true },
-                },
-            },
-        });
+    const solicitud = await this.prisma.solicitud.findUnique({
+      where: { Numero_Solicitud: numeroSolicitud },
+      include: { usuario: true },
+    });
 
-        if (!solicitud) {
-            throw new NotFoundException('Solicitud no encontrada');
-        }
+    if (!solicitud) throw new NotFoundException('Solicitud no encontrada');
 
-        return solicitud.detalles.reduce((acc, d) => {
-            return acc + Number(d.tarifario.Costo_Por_Servicio) * d.Cantidad;
-        }, 0);
+    if (
+      solicitud.Estado === EstadoSolicitud.APROBADA ||
+      solicitud.Estado === EstadoSolicitud.RECHAZADA
+    ) {
+      throw new BadRequestException('Solicitud cerrada');
     }
+
+    const updated = await this.prisma.solicitud.update({
+      where: { Numero_Solicitud: numeroSolicitud },
+      data: {
+        Estado: EstadoSolicitud.RECHAZADA,
+        Comentarios: comentario,
+        Fecha_Cierre: new Date(),
+        Fecha_Ultima_Actualizacion: new Date(),
+      },
+    });
+
+    void this.emailService.sendSolicitudRechazada(solicitud.usuario.Correo, {
+      nombre: solicitud.usuario.Nombre,
+      numero: solicitud.Numero_Solicitud,
+      motivo: comentario,
+    });
+
+    return updated;
+  }
 }
