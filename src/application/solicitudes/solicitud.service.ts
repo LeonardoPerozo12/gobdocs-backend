@@ -269,37 +269,12 @@ export class SolicitudService {
       },
     });
 
-    void this.emailService.sendSolicitudRechazada(
-      solicitud.usuario.Correo,
-      {
-        nombre: solicitud.usuario.Nombre,
-        numero: solicitud.Numero_Solicitud,
-        motivo: comentario,
-      },
-    );
-
-    return updated;
-  }
-
-  // =========================
-  // MONTO
-  // =========================
-  async calcularMontoDesdeSolicitud(solicitudId: number) {
-    const solicitud = await this.prisma.solicitud.findUnique({
-      where: { Numero_Solicitud: solicitudId },
-      include: {
-        detalles: {
-          include: { tarifario: true },
-        },
-      },
+    void this.emailService.sendSolicitudRechazada(solicitud.usuario.Correo, {
+      nombre: solicitud.usuario.Nombre,
+      numero: solicitud.Numero_Solicitud,
+      motivo: comentario,
     });
 
-    if (!solicitud) {
-      throw new NotFoundException('Solicitud no encontrada');
-    }
-
-    return solicitud.detalles.reduce((acc, d) => {
-      return acc + Number(d.tarifario.Costo_Por_Servicio) * d.Cantidad;
-    }, 0);
+    return updated;
   }
 }
