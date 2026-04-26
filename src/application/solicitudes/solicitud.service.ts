@@ -17,6 +17,9 @@ export class SolicitudService {
     private readonly s3Service: S3Service,
   ) {}
 
+  // =========================
+  // CREAR SOLICITUD
+  // =========================
   async createSolicitud(userId: string, data: any) {
     const { solicitudes } = data;
 
@@ -50,11 +53,9 @@ export class SolicitudService {
         include: { tipoDocumento: true },
       });
 
-      if (!formulario) {
-        throw new NotFoundException('Formulario no encontrado');
+      if (!formulario || !formulario.tipoDocumento?.Institucion_ID) {
+        throw new NotFoundException('Formulario inválido');
       }
-
-      const institucionId = formulario.tipoDocumento?.Institucion_ID;
 
       const now = new Date();
 
@@ -68,14 +69,14 @@ export class SolicitudService {
       const solicitud = await this.prisma.solicitud.create({
         data: {
           Usuario_ID: userId,
-          Institucion_ID: institucionId!,
+          Institucion_ID: formulario.tipoDocumento.Institucion_ID,
           Formulario_ID,
           Respuesta_ID: respuesta.Respuesta_ID,
           Estado: EstadoSolicitud.PENDIENTE,
           Respuesta: '',
           Comentarios: '',
           Fecha_Emision: now,
-          Fecha_Cierre: null,
+          Fecha_Cierre: now,
           Fecha_Ultima_Actualizacion: now,
         },
       });
@@ -92,7 +93,26 @@ export class SolicitudService {
         ),
       );
 
-      resultados.push(solicitud);
+      // 🔥 calcular monto
+      const tarifarios = await this.prisma.tarifarioDeServicio.findMany({
+        where: {
+          Tarifario_Codigo: {
+            in: detalles.map((d: any) => d.tarifarioId),
+          },
+        },
+      });
+
+      const total = tarifarios.reduce((acc, t) => {
+        const item = detalles.find(
+          (d: any) => d.tarifarioId === t.Tarifario_Codigo,
+        );
+        return acc + Number(t.Costo_Por_Servicio) * (item?.cantidad || 1);
+      }, 0);
+
+      resultados.push({
+        ...solicitud,
+        monto_estimado: total,
+      });
 
       void this.emailService.sendSolicitudCreada(usuario.Correo, {
         nombre: usuario.Nombre,
@@ -104,6 +124,9 @@ export class SolicitudService {
     return resultados;
   }
 
+  // =========================
+  // GETS
+  // =========================
   async getSolicitudesByUsuario(usuarioId: string) {
     return this.prisma.solicitud.findMany({
       where: { Usuario_ID: usuarioId },
@@ -149,6 +172,9 @@ export class SolicitudService {
     return solicitud;
   }
 
+  // =========================
+  // EMITIR DOCUMENTO
+  // =========================
   async emitirDocumento(
     numeroSolicitud: number,
     file: Express.Multer.File,
@@ -167,12 +193,7 @@ export class SolicitudService {
     });
 
     if (!solicitud) throw new NotFoundException('Solicitud no encontrada');
-    
-    if (!solicitud.formulario?.tipoDocumento) {
-      throw new NotFoundException(
-        'El formulario no tiene tipo de documento asociado',
-      );
-    }
+
     if (
       solicitud.Estado === EstadoSolicitud.APROBADA ||
       solicitud.Estado === EstadoSolicitud.RECHAZADA
@@ -195,7 +216,8 @@ export class SolicitudService {
         Url_Archivo: storedKey,
         Fecha_Emision: new Date(),
         Estado: EstadoDocumento.GENERADO,
-        TipoDocumento_ID: solicitud.formulario.tipoDocumento.TipoDocumento_ID,
+        TipoDocumento_ID:
+          solicitud.formulario.tipoDocumento!.TipoDocumento_ID,
         Solicitud_ID: numeroSolicitud,
       },
     });
@@ -221,6 +243,9 @@ export class SolicitudService {
     return updated;
   }
 
+  // =========================
+  // RECHAZAR
+  // =========================
   async rechazarSolicitud(
     numeroSolicitud: number,
     dto: UpdateEstadoSolicitudDto,
@@ -263,6 +288,40 @@ export class SolicitudService {
 
     return updated;
   }
+
+  // =========================
+  // CANCELAR (🔥 TU FEATURE)
+  // =========================
+  async cancelarSolicitud(numeroSolicitud: number, userId: string) {
+    const solicitud = await this.prisma.solicitud.findUnique({
+      where: { Numero_Solicitud: numeroSolicitud },
+    });
+
+    if (!solicitud) {
+      throw new NotFoundException('Solicitud no encontrada');
+    }
+
+    if (solicitud.Usuario_ID !== userId) {
+      throw new BadRequestException('No puedes cancelar esta solicitud');
+    }
+
+    if (solicitud.Estado === EstadoSolicitud.APROBADA) {
+      throw new BadRequestException('No puedes cancelar una solicitud aprobada');
+    }
+
+    if (solicitud.Estado === EstadoSolicitud.CANCELADA) {
+      throw new BadRequestException('La solicitud ya está cancelada');
+    }
+
+    return this.prisma.solicitud.update({
+      where: { Numero_Solicitud: numeroSolicitud },
+      data: {
+        Estado: EstadoSolicitud.CANCELADA,
+        Fecha_Ultima_Actualizacion: new Date(),
+      },
+    });
+  }
+
   // =========================
   // MONTO
   // =========================

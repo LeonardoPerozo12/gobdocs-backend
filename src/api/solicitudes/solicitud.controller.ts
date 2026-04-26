@@ -44,6 +44,7 @@ export class SolicitudController {
       req.user.institucionId,
     );
   }
+  
 
   // DETALLE DE UNA SOLICITUD
   @Get(':id')
@@ -78,5 +79,15 @@ export class SolicitudController {
     dto.estado = EstadoSolicitud.RECHAZADA;
 
     return this.solicitudService.rechazarSolicitud(Number(id), dto);
+  }
+
+  // CANCELAR SOLICITUD (CIUDADANO)
+  @Patch(':id/cancelar')
+  @UseGuards(AuthGuard('jwt'))
+  cancelarSolicitud(@Param('id') id: string, @Req() req: any) {
+    return this.solicitudService.cancelarSolicitud(
+      Number(id),
+      req.user.userId
+    );
   }
 }
