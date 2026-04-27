@@ -122,6 +122,17 @@ export class UserService {
     return safeUser;
   }
 
+  async getAllUsers() {
+    const users = await this.userRepository.findMany({
+      include: {
+        institucion: true, // opcional pero útil
+      },
+    });
+
+    // 🔥 quitar contraseñas
+    return users.map(({ Contrasena, ...user }) => user);
+  }
+
   // ===============================
   // 🔵 REGISTRO ADMIN (SIN EMAIL)
   // ===============================

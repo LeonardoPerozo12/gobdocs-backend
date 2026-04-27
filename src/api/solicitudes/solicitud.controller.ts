@@ -65,6 +65,12 @@ export class SolicitudController {
     return this.solicitudService.emitirDocumento(Number(id), file, comentario);
   }
 
+  @Get()
+  @Roles(RolUsuario.ADMIN) // o también OPERADOR si quieres
+  getAllSolicitudes() {
+    return this.solicitudService.getAllSolicitudes();
+  }
+
   // Reject solicitud (OPERADOR)
   @Patch(':id/rechazar')
   @Roles(RolUsuario.OPERADOR)
