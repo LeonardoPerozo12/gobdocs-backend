@@ -18,12 +18,16 @@ import { RolUsuario } from '@prisma/client';
 import { Public } from 'src/common/auth/public.decorator';
 import { AdminRegisterDto } from 'src/common/dtos/user/user.admin.register.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { EmailService } from '../../infrastructure/email/email.service' // ajusta el path
 import * as XLSX from 'xlsx';
+
+const FRONTEND_URL = process.env.FRONTEND_URL;
 // import { UserLoginDto } from '../../common/dtos/user/user.login.dto';
 
 @Controller('usuarios')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService, private readonly emailService: EmailService) {}
+  
 
   @Public()
   @Post('registro-ciudadano')
@@ -38,10 +42,20 @@ export class UserController {
     return this.userService.registerOperator(dto);
   }
 
-  @Roles(RolUsuario.ADMIN)
+  @Public()
   @Post('registro-admin')
   async registerAdmin(@Body() dto: AdminRegisterDto) {
     return this.userService.registerAdmin(dto);
+  }
+
+  @Roles(RolUsuario.ADMIN)
+  @Post('invitar-admin')
+  async inviteAdmin(@Body('email') email: string) {
+    const link = `${FRONTEND_URL}/registro-admin?email=${email}`;
+
+    await this.emailService.sendAdminInviteEmail(email, { link });
+
+    return { message: 'Invitación enviada' };
   }
 
   // mass upload de operadores desde un archivo Excel

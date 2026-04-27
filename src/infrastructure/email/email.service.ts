@@ -85,6 +85,40 @@ export class EmailService {
     );
   }
 
+  async sendAdminInviteEmail(
+    to: string,
+    data: {
+      link: string;
+    },
+  ) {
+    const html = `
+      <div style="font-family: Arial; padding:20px;">
+        <h2>Invitación a GobDocs</h2>
+        <p>Has sido invitado a registrarte como administrador.</p>
+        
+        <a href="${data.link}" 
+          style="
+            display:inline-block;
+            padding:12px 20px;
+            background:#1a2b5e;
+            color:white;
+            text-decoration:none;
+            border-radius:6px;
+            margin-top:10px;
+          ">
+          Crear cuenta de administrador
+        </a>
+
+        <p style="margin-top:20px; font-size:12px; color:gray;">
+          Si no solicitaste esto, ignora este correo.
+        </p>
+      </div>
+    `;
+
+    return this.sendEmail(to, 'Invitación a GobDocs (Admin)', html);
+  }
+
+
   // 🔵 Solicitud aprobada
   async sendSolicitudAprobada(
     to: string,
