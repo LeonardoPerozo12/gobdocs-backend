@@ -143,8 +143,8 @@ export class SolicitudService {
   // =========================
   // GETS
   // =========================
-  async getSolicitudesByUsuario(usuarioId: string) {
-    return this.prisma.solicitud.findMany({
+    async getSolicitudesByUsuario(usuarioId: string) {
+    const solicitudes = await this.prisma.solicitud.findMany({
       where: { Usuario_ID: usuarioId },
       include: {
         formulario: { include: { tipoDocumento: true } },
@@ -154,6 +154,18 @@ export class SolicitudService {
       },
       orderBy: { Fecha_Emision: 'desc' },
     });
+
+    // 🔥 GENERAR URLS FIRMADAS
+    for (const sol of solicitudes) {
+      for (const doc of sol.documentos) {
+        doc.Url_Archivo = await this.s3Service.getSignedGetUrl(
+          doc.Url_Archivo,
+          3600
+        );
+      }
+    }
+
+    return solicitudes;
   }
 
   async getSolicitudesByInstitucion(institucionId: string) {
@@ -183,6 +195,14 @@ export class SolicitudService {
 
     if (!solicitud) {
       throw new NotFoundException('Solicitud no encontrada');
+    }
+
+    // 🔥 GENERAR URLs FIRMADAS
+    for (const doc of solicitud.documentos) {
+      doc.Url_Archivo = await this.s3Service.getSignedGetUrl(
+        doc.Url_Archivo,
+        3600
+      );
     }
 
     return solicitud;
