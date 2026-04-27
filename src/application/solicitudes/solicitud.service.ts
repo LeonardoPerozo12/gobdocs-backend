@@ -124,6 +124,22 @@ export class SolicitudService {
     return resultados;
   }
 
+
+  async getAllSolicitudes() {
+    return this.prisma.solicitud.findMany({
+      include: {
+        usuario: true,
+        institucion: true,
+        formulario: true,
+        respuesta: true,
+        documentos: true,
+      },
+      orderBy: {
+        Fecha_Ultima_Actualizacion: 'desc',
+      },
+    });
+  }
+
   // =========================
   // GETS
   // =========================

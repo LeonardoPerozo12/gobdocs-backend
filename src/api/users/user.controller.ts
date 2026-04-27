@@ -55,6 +55,12 @@ export class UserController {
     return this.userService.bulkCreateOperadores(institucionId, file);
   }
 
+  @Get()
+  @Roles(RolUsuario.ADMIN)
+  async getAllUsers() {
+    return this.userService.getAllUsers();
+  }
+
   @Get('operadores/template')
   @Roles(RolUsuario.ADMIN)
   downloadTemplate(@Res() res: Response) {
